@@ -66,7 +66,7 @@ python client.py udp
   - É mais rápido!
   - Melhor pra jogos e chamadas de vídeo
 
-## Detalhes técnicos (pra impressionar o professor 😎)
+## Detalhes técnicos
 
 - Usa threads pra conversar com várias pessoas
 - Tem locks pra evitar problemas
