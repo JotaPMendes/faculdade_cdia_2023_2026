@@ -1,0 +1,20 @@
+while True:
+  try:
+
+    n = int(input())
+    i = 1
+
+    for i in range(n):
+      s, d = map(int, input().split())
+      x, y = 0, 0
+      x = (s + d) // 2
+      y = s - x
+
+      if x + y == s and abs(x - y) == d and (x >= 0 and y >= 0):
+        print(x, y)
+      else:
+        print("impossible")
+
+
+  except EOFError:
+    break

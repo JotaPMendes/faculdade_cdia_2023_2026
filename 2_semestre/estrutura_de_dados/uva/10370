@@ -1,0 +1,28 @@
+class AboveAverage:
+    def __init__(self):
+        pass
+    
+    def calculate_percentage(self, grades):
+        n = len(grades)
+        if n == 0:
+            return 0
+            
+        # Calcula a média
+        average = sum(grades) / n
+        
+        # Conta quantos alunos estão acima da média
+        above_average = sum(1 for grade in grades if grade > average)
+        
+        # Calcula a porcentagem
+        return (above_average * 100) / n
+
+solver = AboveAverage()
+
+C = int(input())
+for _ in range(C):
+    # Lê os dados de cada caso
+    grades = list(map(int, input().split()))[1:]  # Ignora o primeiro número (N)
+    
+    # Calcula e imprime o resultado
+    result = solver.calculate_percentage(grades)
+    print(f"{result:.3f}%")

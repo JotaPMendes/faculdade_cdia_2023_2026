@@ -1,0 +1,20 @@
+class WorldCupNoise():
+  def __init__(self):
+    pass
+  def fibonacci(self, n):
+    if n <= 1:
+      return n
+    a, b = 0, 1
+    for i in range(2, n + 1):
+      a, b = b, a + b
+    return b
+  def solve(self, n):
+    return self.fibonacci(n+2) 
+
+wcn = WorldCupNoise()
+
+t = int(input())
+
+for i in range(1, t + 1):
+  n = int(input())
+  print("Scenario #{}:\n{}\n" .format(i, wcn.solve(n)))

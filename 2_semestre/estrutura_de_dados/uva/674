@@ -1,0 +1,17 @@
+def count_change(value, base):
+    return base[value]
+
+base = [0] * 7490  
+base[0] = 1
+coins = [1, 5, 10, 25, 50]
+
+for coin in coins:
+    for i in range(coin, len(base)):
+        base[i] += base[i - coin]
+
+try:
+    while True:
+        value = int(input())
+        print(count_change(value, base))
+except EOFError:
+    pass

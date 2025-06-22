@@ -1,0 +1,22 @@
+class SMSTyping():
+  def __init__(self):
+    self.number_of_types = {
+            'a': 1, 'd': 1, 'g': 1, 'j': 1, 'm': 1, 'p': 1, 't': 1, 'w': 1, ' ': 1,
+            'b': 2, 'e': 2, 'h': 2, 'k': 2, 'n': 2, 'q': 2, 'u': 2, 'x': 2,
+            'c': 3, 'f': 3, 'i': 3, 'l': 3, 'o': 3, 'r': 3, 'v': 3, 'y': 3,
+            's': 4, 'z': 4
+        }
+
+  def count_types(self, s):
+    total = 0
+    for i in s:
+      total += self.number_of_types.get(i, 0)
+    return total
+
+solver = SMSTyping()
+
+n = int(input())
+
+for i in range(1,n+1):
+  s = input()
+  print("Case #{}: {}" .format(i, solver.count_types(s)))

@@ -1,0 +1,36 @@
+tentativa = 1
+
+while True:
+  try:
+    piles = int(input()) # numero de pilhas
+
+    if piles==0: break
+
+    values = sorted(list(map(int,input().split())))
+    quantity = sum(values) / piles
+    difference = []
+    result = 0
+
+
+    for i in range(len(values)):
+      difference.append(values[i] - quantity)
+
+    l, r = 0, len(difference) - 1
+    while(l < r):
+      if difference[r] + difference[l] == 0:
+        result += difference[r]
+        l += 1
+        r -= 1
+      elif difference[r] + difference[l] < 0:
+        difference[l] += difference[r]
+        result += difference[r]
+        r -= 1
+      else:
+        difference[r] += difference[l]
+        result += -(difference[(l)])
+        l += 1
+    print("Set #{}\nThe minimum number of moves is {}.\n" .format(tentativa, int(result)))
+    tentativa += 1
+
+  except EOFError:
+    break

@@ -1,0 +1,16 @@
+sums = [0] * 50005
+
+def cube(num):
+    return num * num * num
+
+sums[1] = 1
+sums[2] = 9
+for i in range(3, 50001):
+    sums[i] = sums[i - 1] + cube(i)
+
+while True:
+    try:
+        num = int(input())
+        print(sums[num])
+    except EOFError:
+        break

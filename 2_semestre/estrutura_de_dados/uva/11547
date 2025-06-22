@@ -1,0 +1,14 @@
+while True:
+  try:
+
+    t = int(input())
+    i = 1
+
+    for i in range(t):
+      n = int(input())
+      total = (((((n * 567) / 9) + 7492) * 235) / 47) - 498
+      total = str(total)
+      print(total[-4])
+
+  except EOFError:
+    break

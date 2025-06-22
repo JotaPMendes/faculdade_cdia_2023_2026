@@ -1,0 +1,15 @@
+while True:
+  try:
+
+    t = int(input())
+
+    for i in range(t):
+      jogadores, recebe, passes = map(int, input().split())
+      resultado = (recebe + passes) % jogadores
+      if resultado == 0:
+        print("Case {}: {}" .format(i + 1, jogadores))
+      else:
+        print("Case {}: {}" .format(i + 1, resultado))
+
+  except EOFError:
+    break

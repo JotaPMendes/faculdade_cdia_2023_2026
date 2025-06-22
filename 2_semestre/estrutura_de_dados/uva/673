@@ -1,0 +1,25 @@
+class ParenthesesBalance():
+  def __init__(self):
+    self.rules ={")" : "(", "]" : "["}
+    self.stack = []
+
+  def solve(self, string):
+    self.stack.clear()
+    if string == '': return 'Yes'
+    for c in string:
+      if c not in self.rules.values() and c not in self.rules.keys():
+        continue
+      if c in self.rules.values():
+        self.stack.append(c)
+      elif c in self.rules.keys():
+        if len(self.stack) == 0 or self.rules[c] != self.stack.pop():
+          return 'No'
+    return 'Yes' if len(self.stack) == 0 else 'No'
+
+solver = ParenthesesBalance()
+
+n = int(input())
+
+for case in range(1, n+1):
+  string = input()
+  print(solver.solve(string))

@@ -1,0 +1,26 @@
+class SquareMatrix:
+  def __init__(self):
+    pass
+
+  def is_symmetric(self, matrix):
+    n = len(matrix)
+    for i in range(n):
+      for j in range(i, n):
+        if matrix[i][j] != matrix[n-i-1][n-j-1]:
+          return False
+        if matrix[i][j] < 0:
+          return False
+    return True
+
+  def solve(self, matrix, case_number):
+      if self.is_symmetric (matrix): return "Test #{}: Symmetric." .format(case_number)
+      else: return "Test #{}: Non-symmetric." .format(case_number)
+
+solver = SquareMatrix()
+
+t = int(input())
+for case in range(1, t+1):
+    n = int(input().split('=')[1].strip())
+    matrix = [list(map(int, input().split())) for _ in range(n)]
+    result = solver.solve(matrix, case)
+    print(result)

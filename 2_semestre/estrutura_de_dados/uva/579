@@ -1,0 +1,27 @@
+class ClockHands():
+
+  def __init__(self):
+    pass
+
+  def minute_hand(self, minutes):
+    degree = 6 * minutes
+    return degree
+
+  def hour_hand(self, hours, minutes):
+    degree = 30 * hours + (0.5 * minutes)
+    return degree
+
+  def solve(self, hours, minutes):
+    minute_degree = self.minute_hand(minutes)
+    hour_degree = self.hour_hand(hours, minutes)
+    difference = abs(minute_degree - hour_degree)
+    return min(difference, 360 - difference)
+
+solver = ClockHands()
+
+while True:
+  time_input = input()
+  if (time_input == "00:00" or time_input == "0:00"):
+    break
+  hours, minutes = map(int, time_input.split(":"))
+  print("{:.3f}" .format(solver.solve(hours, minutes)))

@@ -1,0 +1,28 @@
+class ReverseAndAdd:
+
+  def __init__(self):
+    pass
+
+  def reverse_number(self, n):
+    return int(str(n)[::-1])
+
+  def is_palindrome(self, n):
+    reverse = str(n)[::-1]
+    return str(n) == reverse
+
+  def solve(self, n):
+    iterations = 0
+    while iterations < 1000:
+      n += self.reverse_number(n)
+      iterations += 1
+      if self.is_palindrome(n):
+        return iterations, n
+    return iterations, n
+
+solver = ReverseAndAdd()
+
+t = int(input())
+for case in range(1, t+1):
+    n = int(input())
+    iterations, n = solver.solve(n)
+    print("{} {}".format(iterations, n))

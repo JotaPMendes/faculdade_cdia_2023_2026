@@ -1,0 +1,34 @@
+class AsLongAsILearnILive():
+  def __init__(self):
+    pass
+  def solve(self, graph, values, node, total_units):
+    total_units += values[node]
+    if node not in graph or not graph[node]:
+      return total_units, node
+    max_value = -1
+    next_node = -1
+    for neighbor in graph[node]:
+      if values[neighbor] > max_value:
+        max_value = values[neighbor]
+        next_node = neighbor
+    return self.solve(graph, values, next_node, total_units)
+
+solver = AsLongAsILearnILive()
+
+test_cases = int(input())
+
+for i in range(test_cases):
+  input()
+  n, m = map(int, input().split())
+  values = list(map(int, input().split()))
+  edges = []
+  graph = {}
+  for _ in range(m):
+    u, v = map(int, input().split())
+    edges.append((u,v))
+  for u, v in edges:
+    if u not in graph:
+      graph[u] = []
+    graph[u].append(v)
+  max_units, end_node = solver.solve(graph, values, 0, 0)
+  print("Case {}: {} {}". format(i + 1, max_units, end_node))

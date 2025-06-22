@@ -1,0 +1,22 @@
+class DigitCounting():
+  def __init__(self):
+    pass
+  def generator(self, n):
+    number_agg = ''
+    for i in range(1, n + 1):
+      number_agg += str(i)
+    return number_agg
+  def counting_numbers(self, number_agg):
+    count = {str(i): 0 for i in range(10)}
+    for digit in number_agg:
+      count[digit] += 1
+    return ' '.join(str(count[str(i)]) for i in range(10))
+
+
+solver = DigitCounting()
+test_cases = int(input())
+for i in range(test_cases):
+  valor = int(input())
+  number_agg = solver.generator(valor)
+  count = solver.counting_numbers(number_agg)
+  print(count)

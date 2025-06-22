@@ -1,0 +1,19 @@
+while True:
+  try:
+
+    def decomp(n):
+      res = 0
+      return res
+
+    n = int(input())
+    if n == 0: break
+    temp = decomp(n)
+    visto = set()
+
+    while temp not in visto:
+      visto.add(temp)
+      temp = decomp(temp)
+    print(temp)
+
+  except EOFError:
+    break

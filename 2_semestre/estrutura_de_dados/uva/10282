@@ -1,0 +1,33 @@
+class BabelFish():
+  def __init__(self):
+    pass
+  def solve(self, words_dict, words_translate):
+    dictionary = {key: value for value, key in words_dict} 
+    translations = []
+    for word in words_translate: 
+      translation = dictionary.get(word, 'eh')
+      translations.append(translation)
+    return translations
+  
+solver = BabelFish()
+dictionary = []
+values = []
+blank_line = False
+
+try:
+    while True:
+        line = input()
+        if line == "":
+            blank_line = True
+            continue
+        if not blank_line:
+            language1, language2 = line.split()
+            dictionary.append((language1, language2))
+        else:
+            values.append(line)
+except EOFError:
+    pass
+
+result = solver.solve(dictionary, values)
+for translation in result:
+    print(translation)

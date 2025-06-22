@@ -1,0 +1,10 @@
+while True:
+  try:
+
+    l, c = map(int, input().split())
+    res = (l * c) - 1
+
+    print(res)
+
+  except EOFError:
+    break
