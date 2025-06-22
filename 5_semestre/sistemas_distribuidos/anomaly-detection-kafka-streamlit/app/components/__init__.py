@@ -1,0 +1,1 @@
+# Inicializador do módulo de componentes da interface
