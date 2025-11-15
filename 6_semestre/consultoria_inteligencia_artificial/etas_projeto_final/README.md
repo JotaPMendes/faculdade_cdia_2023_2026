@@ -332,19 +332,4 @@ test: adicionar testes
 
 Este projeto foi desenvolvido para fins acadêmicos como parte do projeto final da disciplina de Consultoria em Inteligência Artificial.
 
-## 👥 Equipe de Desenvolvimento
-
-- **Desenvolvedor Principal**: [Seu Nome]
-- **Orientador**: [Nome do Professor]
-- **Disciplina**: Consultoria em Inteligência Artificial
-- **Semestre**: 6º Semestre (2025)
-
-## 📞 Suporte
-
-Para dúvidas ou problemas:
-1. Verificar a documentação da API em `/docs`
-2. Consultar logs do console para erros
-3. Verificar se o backend ML está executando
-4. Contatar a equipe de desenvolvimento
-
 ---
