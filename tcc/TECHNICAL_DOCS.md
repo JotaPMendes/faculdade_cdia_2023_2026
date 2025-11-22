@@ -30,6 +30,59 @@ A PINN (`models/pinn.py`) resolve a EDP minimizando uma função de perda compos
     1.  **Adam**: Otimizador estocástico robusto para as primeiras 15.000 iterações (exploração global).
     2.  **L-BFGS**: Otimizador de segunda ordem (quasi-Newton) para refinamento final (convergência rápida e precisa).
 
+#### 1.2.1. Otimizações Implementadas
+
+Com base em pesquisa no repositório oficial do DeepXDE, implementamos as seguintes otimizações para o problema de Poisson 2D:
+
+**A. Ativação `sin` ao invés de `tanh`**
+*   **Motivação**: A solução analítica do Poisson 2D é $u(x,y) = \sin(\pi x)\sin(\pi y)$, uma função periódica. A ativação `sin` tem viés indutivo natural para aprender funções periódicas, reduzindo o "spectral bias" que afeta `tanh`.
+*   **Referência**: DeepXDE examples mostram que `sin` é preferível para problemas com soluções oscilatórias.
+*   **Implementação**: `net = dde.nn.MsFFN([2] + [64]*5 + [1], "sin", ...)`
+
+**B. Sobol Sampling**
+*   **Motivação**: Sampling pseudorandom pode criar clusters e deixar regiões vazias. Sobol sequences (quasi-random) garantem cobertura mais uniforme do domínio, reduzindo pontos redundantes.
+*   **Referência**: DeepXDE suporta nativamente Sobol, Halton, e Hammersley sequences para melhor distribuição espacial.
+*   **Implementação**: `train_distribution="Sobol"` no `dde.data.PDE`
+*   **Trade-off**: Warnings sobre potências de 2 são esperados, mas não afetam significativamente a qualidade.
+
+**C. Escalas Fourier Estendidas**
+*   **Motivação**: A rede `MsFFN` usa transformadas de Fourier em múltiplas escalas (`sigmas`) para capturar diferentes frequências. Adicionar escalas intermediárias (`[1, 5, 10, 50]` vs `[1, 10]`) melhora a representação de gradientes médios.
+*   **Referência**: Artigos sobre Fourier Features mostram que mais escalas = melhor aproximação de funções complexas.
+*   **Implementação**: `sigmas=[1, 5, 10, 50]`
+
+**D. Rede Mais Profunda**
+*   **Motivação**: Aumentar de `[50]*4` para `[64]*5` (4→5 camadas, 50→64 neurônios) aumenta a capacidade da rede sem overhead computacional excessivo.
+*   **Referência**: DeepXDE examples para Poisson 2D usam tipicamente 4-6 camadas com 50-100 neurônios.
+*   **Implementação**: `[2] + [64]*5 + [1]`
+
+**E. Conjunto de Teste Separado**
+*   **Motivação**: Sem `num_test`, DeepXDE reutiliza pontos de treino para validação, resultando em train_loss = test_loss (falso positivo de generalização).
+*   **Implementação**: `num_test=2000` (≈16% do treino) para validação independente.
+*   **Impacto**: Permite detecção precoce de overfitting via Early Stopping.
+
+**F. Early Stopping**
+*   **Motivação**: Evita desperdício de tempo em modelos que estagnaram.
+*   **Implementação**: `dde.callbacks.EarlyStopping(min_delta=1e-4, patience=2000)`
+*   **Critério**: Para se a loss não melhorar `1e-4` por 2000 iterações consecutivas.
+
+#### 1.2.2. Correção Crítica: Boundary Conditions
+
+**Problema Identificado**: A implementação inicial usava `bc = dde.icbc.DirichletBC(geom, lambda X: 0.0, ...)`, forçando $u=0$ em **toda a borda** do `train_box` $[0, 0.6] \times [0, 1]$.
+
+**Por que isso é errado?**
+*   A borda interna em $x=0.6$ **não** faz parte da borda física do problema original $[0,1]^2$.
+*   A solução verdadeira em $x=0.6$ é $u(0.6, y) = \sin(0.6\pi)\sin(\pi y) \approx 0.95\sin(\pi y) \neq 0$.
+*   Forçar $u=0$ criava um gradiente artificial massivo na interface, impedindo a PINN de aprender corretamente.
+
+**Solução Implementada**:
+```python
+bc = dde.icbc.DirichletBC(geom, u_true, lambda X, on_b: on_b)
+```
+*   Agora a BC usa os **valores verdadeiros** da solução analítica na borda.
+*   Isso garante continuidade física e permite que a PINN aprenda a física correta dentro do `train_box` e extrapole para fora.
+
+**Impacto**: Esta correção foi **fundamental** para permitir que a PINN competisse com o FEM. Antes da correção, o MAE era >0.5. Depois, caiu para ~0.19.
+
 ### 1.3. Machine Learning Clássico
 Os modelos de ML (`models/regressors.py`) tratam o problema como uma regressão pura $f(x,y) \to u$.
 
