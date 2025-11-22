@@ -1,5 +1,6 @@
 import os
 import deepxde as dde
+from utils.checkpoint import CheckpointManager
 
 def train_pinn(problem, config):
     data, net = problem["data"], problem["net"]
@@ -13,14 +14,25 @@ def train_pinn(problem, config):
     # Otimizador Adam
     model.compile("adam", lr=1e-3, loss_weights=loss_weights)
     
-    # Callbacks: Resampling mais frequente e Salvamento
-    # Configuração de Checkpoint por problema
-    problem_name = config["problem"]
-    ckpt_dir = os.path.join("checkpoints", problem_name)
+    # Configuração de Checkpoint via Manager
+    ckpt_manager = CheckpointManager(max_keep=3)
+    ckpt_dir = ckpt_manager.get_run_dir(config)
     ckpt_path = os.path.join(ckpt_dir, "model.ckpt")
     
-    if not os.path.exists(ckpt_dir):
-        os.makedirs(ckpt_dir)
+    # Callback customizado para limpeza
+    class CleanupCallback(dde.callbacks.Callback):
+        def __init__(self, manager, run_dir):
+            super().__init__()
+            self.manager = manager
+            self.run_dir = run_dir
+            
+        def on_epoch_end(self):
+            pass
+            
+        def on_train_end(self):
+            self.manager.cleanup(self.run_dir)
+            
+    cleanup_cb = CleanupCallback(ckpt_manager, ckpt_dir)
         
     checker = dde.callbacks.ModelCheckpoint(ckpt_path, save_better_only=True, period=1000)
     resampler = dde.callbacks.PDEPointResampler(period=100)
@@ -50,15 +62,13 @@ def train_pinn(problem, config):
     
     if remaining_iters > 0:
         print(f">>> Iniciando treinamento ADAM por {remaining_iters} iterações (Total: {total_adam_iters})...")
-        model.train(iterations=remaining_iters, callbacks=[resampler, checker], display_every=1000)
+        model.train(iterations=remaining_iters, callbacks=[resampler, checker, cleanup_cb], display_every=1000)
     else:
         print(f">>> Treinamento ADAM já concluído (Step {latest_step} >= {total_adam_iters}). Pulando...")
 
-    # Refinamento L-BFGS (Sempre roda um pouco para garantir convergência fina ou se for novo)
-    # L-BFGS não usa iterações fixas da mesma forma, mas vamos rodar se o erro ainda for alto ou se o usuário quiser
-    # Aqui vamos assumir que se já treinou tudo do Adam, rodamos o L-BFGS novamente para garantir
+    # Refinamento L-BFGS
     print(">>> Refinando com L-BFGS...")
     model.compile("L-BFGS", loss_weights=loss_weights)
-    model.train(iterations=5000, callbacks=[checker])
+    model.train(iterations=5000, callbacks=[checker, cleanup_cb])
     
     return model
