@@ -33,10 +33,12 @@ def make_poisson_2d(cfg):
     U_anchor = u_true(XY_anchor)
     anchor_bc = dde.icbc.PointSetBC(XY_anchor, U_anchor)
 
-    data = dde.data.PDE(geom, pde, [bc, anchor_bc], num_domain=10000, num_boundary=2000, num_test=2000)
+    data = dde.data.PDE(geom, pde, [bc, anchor_bc], 
+                        num_domain=10000, num_boundary=2000, num_test=2000,
+                        train_distribution="Sobol")
 
-    # Rede Multi-scale (bom para problemas espaciais)
-    net = dde.nn.MsFFN([2] + [50]*4 + [1], "tanh", "Glorot uniform", sigmas=[1, 10])
+    # Rede Multi-scale com ativação sin (melhor para soluções periódicas) e mais escalas Fourier
+    net = dde.nn.MsFFN([2] + [64]*5 + [1], "sin", "Glorot uniform", sigmas=[1, 5, 10, 50])
     
     # Feature transform (Normaliza [bx0, bx1] -> [-1, 1])
     def feature_transform(X):
