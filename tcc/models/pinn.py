@@ -33,6 +33,28 @@ def train_pinn(problem, config):
             self.manager.cleanup(self.run_dir)
             
     cleanup_cb = CleanupCallback(ckpt_manager, ckpt_dir)
+    
+    # Early Stopping: Para se não melhorar 1e-4 em 2000 iterações
+    early_stopping = dde.callbacks.EarlyStopping(min_delta=1e-4, patience=2000)
+    
+    # Monitor de Convergência Customizado
+    class ConvergenceMonitor(dde.callbacks.Callback):
+        def __init__(self):
+            super().__init__()
+            self.last_loss = float('inf')
+            
+        def on_epoch_end(self):
+            pass
+            
+        def on_train_begin(self):
+            self.last_loss = float('inf')
+
+        def on_epoch_begin(self):
+            # DeepXDE não expõe loss facilmente no epoch_begin, vamos usar o log padrão
+            pass
+            
+    # Nota: DeepXDE imprime logs automaticamente. O EarlyStopping já avisa quando para.
+    # Vamos apenas aumentar a frequência de display para 500.
         
     checker = dde.callbacks.ModelCheckpoint(ckpt_path, save_better_only=True, period=1000)
     resampler = dde.callbacks.PDEPointResampler(period=100)
@@ -62,13 +84,13 @@ def train_pinn(problem, config):
     
     if remaining_iters > 0:
         print(f">>> Iniciando treinamento ADAM por {remaining_iters} iterações (Total: {total_adam_iters})...")
-        model.train(iterations=remaining_iters, callbacks=[resampler, checker, cleanup_cb], display_every=1000)
+        model.train(iterations=remaining_iters, callbacks=[resampler, checker, cleanup_cb, early_stopping], display_every=500)
     else:
         print(f">>> Treinamento ADAM já concluído (Step {latest_step} >= {total_adam_iters}). Pulando...")
 
     # Refinamento L-BFGS
     print(">>> Refinando com L-BFGS...")
     model.compile("L-BFGS", loss_weights=loss_weights)
-    model.train(iterations=5000, callbacks=[checker, cleanup_cb])
+    model.train(iterations=5000, callbacks=[checker, cleanup_cb, early_stopping], display_every=500)
     
     return model
