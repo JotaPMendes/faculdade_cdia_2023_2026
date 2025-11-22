@@ -9,6 +9,8 @@ Este projeto implementa e compara três diferentes problemas físicos:
 2. **Equação da Onda 1D** - Propagação de ondas
 3. **Equação de Poisson 2D** - Problemas elípticos
 
+> 📘 **Documentação Técnica**: Para detalhes profundos sobre a implementação dos solvers e sistemas, consulte [TECHNICAL_DOCS.md](TECHNICAL_DOCS.md).
+
 ## 🏗️ Estrutura do Projeto
 
 ```
@@ -19,6 +21,7 @@ tcc/
 ├── requirements.txt          # Dependências Python
 ├── models/
 │   ├── pinn.py              # Treinamento do PINN
+│   ├── fem.py               # Solver FEM (Baseline Numérico)
 │   └── regressors.py        # Modelos ML Clássicos (RF, XGB, KNN)
 ├── problems/
 │   ├── __init__.py          # Interface de problemas
@@ -26,6 +29,7 @@ tcc/
 │   ├── wave.py              # Equação da Onda
 │   └── poisson2d.py         # Equação de Poisson 2D
 └── utils/
+    ├── checkpoint.py        # Gerenciador de Checkpoints Avançado
     ├── data.py              # Geração de dados
     └── plots.py             # Visualizações
 ```
@@ -136,6 +140,11 @@ python main.py
 - **Gradient Boosting** (XGB): 200 estimadores
 - **K-Nearest Neighbors** (KNN): 10 vizinhos
 
+### FEM (Finite Element Method)
+- Solver numérico tradicional implementado como baseline.
+- Utiliza elementos Q1 em malha estruturada.
+- Garante precisão física para comparação.
+
 ## 📈 Métricas de Avaliação
 
 - **MAE** (Mean Absolute Error): Erro médio absoluto
@@ -214,6 +223,15 @@ O projeto gera:
 2. **Ranking de modelos**: Ordenação por performance
 3. **Visualizações**: Gráficos comparativos
 4. **Checkpoint**: Modelo PINN salvo em `checkpoints/`
+
+## 💾 Sistema de Checkpointing
+
+O projeto utiliza um sistema inteligente de persistência (`utils/checkpoint.py`):
+
+- **Separação por Parâmetros**: Cada configuração única em `config.py` gera uma pasta separada (ex: `run_001`, `run_002`).
+- **Resume Automático**: Se você rodar novamente uma configuração existente, o treino continua de onde parou.
+- **Limpeza**: Mantém apenas os 3 checkpoints mais recentes para economizar espaço.
+- **Registro**: O arquivo `checkpoints/registry.json` mapeia suas configurações para as pastas de execução.
 
 ## 🐛 Troubleshooting
 

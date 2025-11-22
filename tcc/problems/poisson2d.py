@@ -24,7 +24,8 @@ def make_poisson_2d(cfg):
     geom = dde.geometry.Rectangle([bx0, by0], [bx1, by1])
     
     # BC apenas nas bordas DA CAIXA DE TREINO
-    bc = dde.icbc.DirichletBC(geom, lambda X: 0.0, lambda X, on_b: on_b)
+    # IMPORTANTE: Usar u_true para pegar os valores corretos na borda (especialmente em x=0.6)
+    bc = dde.icbc.DirichletBC(geom, u_true, lambda X, on_b: on_b)
 
     # Pontos âncora (opcional, ajuda a fixar a solução)
     N_anchor = 200
