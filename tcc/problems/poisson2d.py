@@ -33,7 +33,7 @@ def make_poisson_2d(cfg):
     U_anchor = u_true(XY_anchor)
     anchor_bc = dde.icbc.PointSetBC(XY_anchor, U_anchor)
 
-    data = dde.data.PDE(geom, pde, [bc, anchor_bc], num_domain=10000, num_boundary=2000)
+    data = dde.data.PDE(geom, pde, [bc, anchor_bc], num_domain=10000, num_boundary=2000, num_test=2000)
 
     # Rede Multi-scale (bom para problemas espaciais)
     net = dde.nn.MsFFN([2] + [50]*4 + [1], "tanh", "Glorot uniform", sigmas=[1, 10])

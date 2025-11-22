@@ -24,7 +24,7 @@ def make_heat_1d(cfg):
     ic  = dde.icbc.IC(geomtime, lambda X: np.sin(np.pi*X[:,0:1]/Lx), lambda X, on_i: on_i)
 
     data = dde.data.TimePDE(geomtime, pde, [bcL, bcR, ic],
-                            num_domain=4000, num_boundary=400, num_initial=400)
+                            num_domain=4000, num_boundary=400, num_initial=400, num_test=1000)
     
     net = dde.nn.FNN([2] + [64]*4 + [1], "tanh", "Glorot uniform")
     def feature_transform(X):

@@ -28,7 +28,7 @@ def make_wave_1d(cfg):
     ic_ut = dde.icbc.OperatorBC(geomtime, operator_bc, lambda X, on_i: np.isclose(X[1], 0.0))
 
     data = dde.data.TimePDE(geomtime, pde, [bcL, bcR, ic_u, ic_ut],
-                            num_domain=8000, num_boundary=800, num_initial=800)
+                            num_domain=8000, num_boundary=800, num_initial=800, num_test=1000)
 
     net = dde.nn.FNN([2] + [64]*5 + [1], "sin", "Glorot uniform") # Sin activation p/ onda costuma ser melhor
     def feature_transform(X):
