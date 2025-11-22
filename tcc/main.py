@@ -16,6 +16,7 @@ from config import CONFIG
 from problems import make_problem
 from models.pinn import train_pinn
 from models.regressors import get_regressors
+from models.fem import PoissonFEM
 from utils.data import generate_data_for_ml
 from utils.plots import plot_results
 
@@ -47,6 +48,18 @@ def main():
     print("=" * 70)
     model_pinn = train_pinn(problem)
     print("✓ PINN treinado com sucesso!")
+
+    # =============================
+    # 2.1. RESOLVER FEM (Reference)
+    # =============================
+    model_fem = None
+    if CONFIG["problem"] == "poisson_2d":
+        print("\n" + "=" * 70)
+        print("ETAPA 2.1: Resolvendo FEM (Baseline Numérico)...")
+        print("=" * 70)
+        model_fem = PoissonFEM(problem, Nx=50, Ny=50)
+        model_fem.solve()
+        print("✓ FEM resolvido com sucesso!")
     
     # =============================
     # 3. GERAR DADOS PARA ML
@@ -93,6 +106,14 @@ def main():
     mae_pinn = mean_absolute_error(yte, y_pred_pinn)
     results_metrics["PINN"] = mae_pinn
     print(f"  MAE (PINN): {mae_pinn:.6f}")
+
+    # Avaliar FEM
+    if model_fem:
+        print("\nAvaliando FEM...")
+        y_pred_fem = model_fem.predict(Xte)
+        mae_fem = mean_absolute_error(yte, y_pred_fem)
+        results_metrics["FEM"] = mae_fem
+        print(f"  MAE (FEM):  {mae_fem:.6f}")
     
     # Avaliar ML Clássico
     for name, model in trained_models:
@@ -127,7 +148,7 @@ def main():
     print("=" * 70)
     
     try:
-        plot_results(problem, model_pinn, trained_models, results_metrics, CONFIG)
+        plot_results(problem, model_pinn, model_fem, trained_models, results_metrics, CONFIG)
         print("✓ Gráficos salvos com sucesso!")
     except Exception as e:
         print(f"⚠ Erro ao gerar gráficos: {e}")

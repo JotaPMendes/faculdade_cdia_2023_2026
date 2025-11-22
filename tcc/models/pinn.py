@@ -7,7 +7,7 @@ def train_pinn(problem):
     
     # Pesos dinâmicos baseados no número de constraints
     # Ex: Heat -> 4 perdas (1 PDE + 2 BCs + 1 IC)
-    num_losses = len(data.bc) + (1 if data.pde is not None else 0)
+    num_losses = len(data.bcs) + (1 if data.pde is not None else 0)
     loss_weights = [1.0] * num_losses
 
     # Otimizador Adam
