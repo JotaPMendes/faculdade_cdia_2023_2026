@@ -19,6 +19,9 @@ from models.regressors import get_regressors
 from models.fem import PoissonFEM
 from utils.data import generate_data_for_ml
 from utils.plots import plot_results
+from utils.checkpoint import CheckpointManager
+import json
+import os
 
 
 def main():
@@ -39,6 +42,11 @@ def main():
     problem = make_problem(CONFIG)
     print(f"✓ Problema criado: tipo='{problem['kind']}'")
     print(f"✓ Componentes: data={type(problem['data']).__name__}, net={type(problem['net']).__name__}")
+    
+    # Instanciar Manager para obter diretório de salvamento
+    ckpt_manager = CheckpointManager(max_keep=3)
+    ckpt_dir = ckpt_manager.get_run_dir(CONFIG)
+    print(f"✓ Diretório de execução: {ckpt_dir}")
     
     # =============================
     # 2. TREINAR PINN
@@ -140,6 +148,12 @@ def main():
     best_model = sorted_results[0][0]
     print(f"\n✓ Melhor modelo: {best_model}")
     
+    # Salvar métricas em JSON
+    metrics_path = os.path.join(ckpt_dir, "metrics.json")
+    with open(metrics_path, "w") as f:
+        json.dump(results_metrics, f, indent=2)
+    print(f"✓ Métricas salvas em: {metrics_path}")
+    
     # =============================
     # 7. GERAR VISUALIZAÇÕES
     # =============================
@@ -148,7 +162,7 @@ def main():
     print("=" * 70)
     
     try:
-        plot_results(problem, model_pinn, model_fem, trained_models, results_metrics, CONFIG)
+        plot_results(problem, model_pinn, model_fem, trained_models, results_metrics, CONFIG, save_dir=ckpt_dir)
         print("✓ Gráficos salvos com sucesso!")
     except Exception as e:
         print(f"⚠ Erro ao gerar gráficos: {e}")

@@ -1,17 +1,17 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def plot_results(problem, model_pinn, model_fem, regressors, results_metrics, cfg):
+def plot_results(problem, model_pinn, model_fem, regressors, results_metrics, cfg, save_dir=None):
     """
     Função principal de plotagem. Detecta o tipo de problema e chama
     o visualizador específico.
     """
     if cfg["problem"] == "poisson_2d":
-        _plot_spatial_comparison(problem, model_pinn, model_fem, regressors, results_metrics, cfg)
+        _plot_spatial_comparison(problem, model_pinn, model_fem, regressors, results_metrics, cfg, save_dir)
     else:
-        _plot_temporal_extrapolation(problem, model_pinn, regressors, results_metrics, cfg)
+        _plot_temporal_extrapolation(problem, model_pinn, regressors, results_metrics, cfg, save_dir)
 
-def _plot_spatial_comparison(problem, model_pinn, model_fem, regressors, metrics, cfg):
+def _plot_spatial_comparison(problem, model_pinn, model_fem, regressors, metrics, cfg, save_dir=None):
     """
     Gera mapas de contorno (Contour Plots) para o Poisson 2D.
     Destaque: Desenha uma caixa vermelha mostrando a área de treino.
@@ -90,9 +90,16 @@ def _plot_spatial_comparison(problem, model_pinn, model_fem, regressors, metrics
     fig.colorbar(pcm, ax=ax[3], shrink=0.6)
 
     plt.suptitle(f"Comparação de Generalização Espacial - {cfg['problem']}", fontsize=16)
+    
+    if save_dir:
+        import os
+        save_path = os.path.join(save_dir, "comparison.png")
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        print(f"✓ Gráfico salvo em: {save_path}")
+        
     plt.show()
 
-def _plot_temporal_extrapolation(problem, model_pinn, regressors, metrics, cfg):
+def _plot_temporal_extrapolation(problem, model_pinn, regressors, metrics, cfg, save_dir=None):
     """
     Gera curvas 1D (Heat/Wave) mostrando a evolução no tempo.
     Destaque: Linha vertical separando Treino (passado) vs Avaliação (futuro).
@@ -139,4 +146,11 @@ def _plot_temporal_extrapolation(problem, model_pinn, regressors, metrics, cfg):
     plt.legend(loc="upper left", bbox_to_anchor=(1, 1)) # Legenda fora do gráfico
     plt.grid(True, linestyle="--", alpha=0.5)
     plt.tight_layout()
+    
+    if save_dir:
+        import os
+        save_path = os.path.join(save_dir, "extrapolation.png")
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        print(f"✓ Gráfico salvo em: {save_path}")
+
     plt.show()
