@@ -37,8 +37,8 @@ def make_poisson_2d(cfg):
                         num_domain=10000, num_boundary=2000, num_test=2000,
                         train_distribution="Sobol")
 
-    # Rede Multi-scale com ativação sin (melhor para soluções periódicas) e mais escalas Fourier
-    net = dde.nn.MsFFN([2] + [64]*5 + [1], "sin", "Glorot uniform", sigmas=[1, 5, 10, 50])
+    # Rede Multi-scale com ativação tanh (mais estável com MsFFN) e mais escalas Fourier
+    net = dde.nn.MsFFN([2] + [64]*5 + [1], "tanh", "Glorot uniform", sigmas=[1, 5, 10])
     
     # Feature transform (Normaliza [bx0, bx1] -> [-1, 1])
     def feature_transform(X):

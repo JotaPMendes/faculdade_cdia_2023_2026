@@ -84,7 +84,18 @@ def train_pinn(problem, config):
     
     if remaining_iters > 0:
         print(f">>> Iniciando treinamento ADAM por {remaining_iters} iterações (Total: {total_adam_iters})...")
-        model.train(iterations=remaining_iters, callbacks=[resampler, checker, cleanup_cb, early_stopping], display_every=500)
+        # Callbacks
+        # 1. RAR: Reamostra pontos onde o erro é maior a cada 1000 iterações
+        resampler = dde.callbacks.PDEPointResampler(period=1000)
+        
+        # 2. Early Stopping
+        early_stopping = dde.callbacks.EarlyStopping(min_delta=1e-4, patience=2000)
+        
+        # 3. Cleanup (já existente)
+        cleanup_cb = CleanupCallback(ckpt_manager, config)
+        
+        # Treinar (Adam)
+        model.train(iterations=remaining_iters, callbacks=[resampler, cleanup_cb, early_stopping], display_every=500)
     else:
         print(f">>> Treinamento ADAM já concluído (Step {latest_step} >= {total_adam_iters}). Pulando...")
 

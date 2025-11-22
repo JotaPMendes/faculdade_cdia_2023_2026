@@ -34,10 +34,9 @@ A PINN (`models/pinn.py`) resolve a EDP minimizando uma função de perda compos
 
 Com base em pesquisa no repositório oficial do DeepXDE, implementamos as seguintes otimizações para o problema de Poisson 2D:
 
-**A. Ativação `sin` ao invés de `tanh`**
-*   **Motivação**: A solução analítica do Poisson 2D é $u(x,y) = \sin(\pi x)\sin(\pi y)$, uma função periódica. A ativação `sin` tem viés indutivo natural para aprender funções periódicas, reduzindo o "spectral bias" que afeta `tanh`.
-*   **Referência**: DeepXDE examples mostram que `sin` é preferível para problemas com soluções oscilatórias.
-*   **Implementação**: `net = dde.nn.MsFFN([2] + [64]*5 + [1], "sin", ...)`
+**A. Ativação `tanh` (Revertido)**
+*   **Motivação**: Inicialmente testamos `sin`, mas combinada com MsFFN gerou instabilidade inicial. `tanh` provou ser mais robusta para este problema específico, mantendo a capacidade de aprendizado sem explodir gradientes.
+*   **Implementação**: `net = dde.nn.MsFFN([2] + [64]*5 + [1], "tanh", ...)`
 
 **B. Sobol Sampling**
 *   **Motivação**: Sampling pseudorandom pode criar clusters e deixar regiões vazias. Sobol sequences (quasi-random) garantem cobertura mais uniforme do domínio, reduzindo pontos redundantes.
@@ -45,10 +44,10 @@ Com base em pesquisa no repositório oficial do DeepXDE, implementamos as seguin
 *   **Implementação**: `train_distribution="Sobol"` no `dde.data.PDE`
 *   **Trade-off**: Warnings sobre potências de 2 são esperados, mas não afetam significativamente a qualidade.
 
-**C. Escalas Fourier Estendidas**
-*   **Motivação**: A rede `MsFFN` usa transformadas de Fourier em múltiplas escalas (`sigmas`) para capturar diferentes frequências. Adicionar escalas intermediárias (`[1, 5, 10, 50]` vs `[1, 10]`) melhora a representação de gradientes médios.
-*   **Referência**: Artigos sobre Fourier Features mostram que mais escalas = melhor aproximação de funções complexas.
-*   **Implementação**: `sigmas=[1, 5, 10, 50]`
+**C. Escalas Fourier Ajustadas**
+*   **Motivação**: Testamos `[1, 5, 10, 50]`, mas a escala `50` causou explosão da derivada segunda ($\nabla^2 u \approx \sigma^2$), elevando a loss inicial para $10^9$.
+*   **Ajuste**: Reduzimos para `[1, 5, 10]`, o que estabilizou a inicialização ($10^6$) mantendo boa capacidade de capturar frequências médias.
+*   **Implementação**: `sigmas=[1, 5, 10]`
 
 **D. Rede Mais Profunda**
 *   **Motivação**: Aumentar de `[50]*4` para `[64]*5` (4→5 camadas, 50→64 neurônios) aumenta a capacidade da rede sem overhead computacional excessivo.
@@ -64,6 +63,12 @@ Com base em pesquisa no repositório oficial do DeepXDE, implementamos as seguin
 *   **Motivação**: Evita desperdício de tempo em modelos que estagnaram.
 *   **Implementação**: `dde.callbacks.EarlyStopping(min_delta=1e-4, patience=2000)`
 *   **Critério**: Para se a loss não melhorar `1e-4` por 2000 iterações consecutivas.
+
+**G. RAR (Residual-based Adaptive Refinement)**
+*   **Motivação**: Pontos de colocação fixos podem não capturar regiões de alto erro (ex: bordas ou picos da função). O RAR adiciona dinamicamente pontos onde o resíduo da PDE é maior.
+*   **Implementação**: `dde.callbacks.PDEPointResampler(period=1000)`
+*   **Funcionamento**: A cada 1000 iterações, avalia o erro em um conjunto denso de candidatos e adiciona os piores pontos ao conjunto de treino.
+*   **Impacto**: Melhora a precisão em regiões críticas sem aumentar drasticamente o custo computacional total.
 
 #### 1.2.2. Correção Crítica: Boundary Conditions
 
