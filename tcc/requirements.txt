@@ -1,0 +1,5 @@
+deepxde
+tensorflow
+numpy
+scikit-learn
+matplotlib

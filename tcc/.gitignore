@@ -1,0 +1,117 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# TensorFlow / Deep Learning
+*.ckpt
+*.ckpt.*
+*.h5
+*.hdf5
+*.pb
+*.pth
+*.pt
+events.out.tfevents.*
+checkpoints/
+logs/
+tensorboard_logs/
+saved_models/
+models_saved/
+
+# DeepXDE specific
+.deepxde/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Data files
+*.csv
+*.dat
+*.npy
+*.npz
+*.pkl
+*.pickle
+
+# Images and plots
+*.png
+*.jpg
+*.jpeg
+*.pdf
+*.svg
+results/
+figures/
+plots/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.code-workspace
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Documentação
+docs/_build/
+site/
+
+# Logs
+*.log
+*.out
+*.err
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+# OS specific
+Thumbs.db
+.Spotlight-V100
+.Trashes
+
+# Project specific
+experiments/
+output/
+checkpoints/
+*.ckpt-*
+best_model/
