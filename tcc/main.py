@@ -46,7 +46,7 @@ def main():
     print("\n" + "=" * 70)
     print("ETAPA 2: Treinando PINN...")
     print("=" * 70)
-    model_pinn = train_pinn(problem)
+    model_pinn = train_pinn(problem, CONFIG)
     print("✓ PINN treinado com sucesso!")
 
     # =============================
