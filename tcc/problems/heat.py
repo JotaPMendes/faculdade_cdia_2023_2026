@@ -2,7 +2,7 @@ import numpy as np
 import deepxde as dde
 import tensorflow as tf
 
-def make_heat_1d(cfg):
+def create_heat_problem(cfg):
     alpha, Lx, T_train = cfg["alpha"], cfg["Lx"], cfg["T_train"]
 
     def u_true(X):

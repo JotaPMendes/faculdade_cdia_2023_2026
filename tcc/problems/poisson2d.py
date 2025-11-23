@@ -2,7 +2,7 @@ import numpy as np
 import deepxde as dde
 import tensorflow as tf
 
-def make_poisson_2d(cfg):
+def create_poisson_2d_problem(cfg):
     # CRÍTICO: Restringir geometria do PINN para ser justo com ML
     bx0, by0, bx1, by1 = cfg["train_box"]
 

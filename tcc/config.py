@@ -1,5 +1,6 @@
 CONFIG = {
-    "problem": "poisson_2d",   # "heat_1d" | "wave_1d" | "poisson_2d"
+    "problem": "heat_mesh",
+    "mesh_file": "domain.msh", # MeshLoader will look in meshes/
     "alpha": 0.1,              # Difusividade
     "c": 1.0,                  # Velocidade da onda
     "Lx": 4.0,

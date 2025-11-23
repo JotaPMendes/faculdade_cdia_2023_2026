@@ -2,7 +2,7 @@ import numpy as np
 import deepxde as dde
 import tensorflow as tf
 
-def make_wave_1d(cfg):
+def create_wave_problem(cfg):
     c, Lx, T_train = cfg["c"], cfg["Lx"], cfg["T_train"]
 
     def u_true(X):

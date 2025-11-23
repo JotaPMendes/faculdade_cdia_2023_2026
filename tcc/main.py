@@ -13,7 +13,6 @@ import numpy as np
 from sklearn.metrics import mean_absolute_error
 
 from config import CONFIG
-from problems import make_problem
 from models.pinn import train_pinn
 from models.regressors import get_regressors
 from models.fem import PoissonFEM
@@ -23,6 +22,26 @@ from utils.checkpoint import CheckpointManager
 import json
 import os
 
+from problems.poisson2d import create_poisson_2d_problem
+from problems.heat import create_heat_problem
+from problems.wave import create_wave_problem
+from problems.custom_mesh import create_custom_mesh_problem
+from problems.heat_mesh import create_heat_mesh_problem
+
+def get_problem(config):
+    name = config["problem"]
+    if name == "poisson_2d":
+        return create_poisson_2d_problem(config)
+    elif name == "heat_1d":
+        return create_heat_problem(config)
+    elif name == "wave_1d":
+        return create_wave_problem(config)
+    elif name == "custom_mesh":
+        return create_custom_mesh_problem(config)
+    elif name == "heat_mesh":
+        return create_heat_mesh_problem(config)
+    else:
+        raise ValueError(f"Problema desconhecido: {name}")
 
 def main():
     print("=" * 70)
@@ -39,7 +58,7 @@ def main():
     print("\n" + "=" * 70)
     print("ETAPA 1: Criando problema...")
     print("=" * 70)
-    problem = make_problem(CONFIG)
+    problem = get_problem(CONFIG)
     print(f"✓ Problema criado: tipo='{problem['kind']}'")
     print(f"✓ Componentes: data={type(problem['data']).__name__}, net={type(problem['net']).__name__}")
     
