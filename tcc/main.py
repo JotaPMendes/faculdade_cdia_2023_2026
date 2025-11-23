@@ -61,7 +61,9 @@ def main():
     print(f"✓ Componentes: data={type(problem['data']).__name__}, net={type(problem['net']).__name__}")
     
     # Instanciar Manager para obter diretório de salvamento
-    ckpt_manager = CheckpointManager(max_keep=3)
+    # max_keep=0 significa infinito/todos
+    max_keep = CONFIG.get("keep_checkpoints", 0)
+    ckpt_manager = CheckpointManager(max_keep=max_keep)
     ckpt_dir = ckpt_manager.get_run_dir(CONFIG)
     print(f"✓ Diretório de execução: {ckpt_dir}")
     
@@ -142,16 +144,19 @@ def main():
     regressors = get_regressors()
     trained_models = []
     
-    for name, model in regressors:
-        print(f"\nTreinando {name}...")
-        model.fit(Xtr, ytr.ravel())
-        score_train = model.score(Xtr, ytr.ravel())
-        score_test = model.score(Xte, yte.ravel())
-        print(f"  R² (treino): {score_train:.4f}")
-        print(f"  R² (teste):  {score_test:.4f}")
-        trained_models.append((name, model))
-    
-    print("\n✓ Todos os modelos ML treinados!")
+    if len(Xte) == 0:
+        print("⚠️ Aviso: Conjunto de teste vazio. Pulando treinamento de ML Clássico.")
+    else:
+        for name, model in regressors:
+            print(f"\nTreinando {name}...")
+            model.fit(Xtr, ytr.ravel())
+            score_train = model.score(Xtr, ytr.ravel())
+            score_test = model.score(Xte, yte.ravel())
+            print(f"  R² (treino): {score_train:.4f}")
+            print(f"  R² (teste):  {score_test:.4f}")
+            trained_models.append((name, model))
+        
+        print("\n✓ Todos os modelos ML treinados!")
     
     # =============================
     # 5. AVALIAR NO CONJUNTO DE TESTE
@@ -163,59 +168,62 @@ def main():
     results_metrics = {}
     
     # Avaliar PINN
-    print("\nAvaliando PINN...")
-    y_pred_pinn = model_pinn.predict(Xte)
-    mae_pinn = mean_absolute_error(yte, y_pred_pinn)
-    results_metrics["PINN"] = mae_pinn
-    print(f"  MAE (PINN): {mae_pinn:.6f}")
+    if len(Xte) > 0:
+        print("\nAvaliando PINN...")
+        y_pred_pinn = model_pinn.predict(Xte)
+        mae_pinn = mean_absolute_error(yte, y_pred_pinn)
+        results_metrics["PINN"] = mae_pinn
+        print(f"  MAE (PINN): {mae_pinn:.6f}")
 
-    # Avaliar FEM
-    if model_fem:
-        print("\nAvaliando FEM...")
-        y_pred_fem = model_fem.predict(Xte)
-        # Handle NaNs from interpolation (outside mesh)
-        mask = ~np.isnan(y_pred_fem)
-        if not np.all(mask):
-            print(f"  ⚠️ Aviso: {np.sum(~mask)} pontos fora da malha FEM ignorados na avaliação.")
-            y_pred_fem = y_pred_fem[mask]
-            yte_fem = yte[mask]
-        else:
-            yte_fem = yte
-            
-        mae_fem = mean_absolute_error(yte_fem, y_pred_fem)
-        results_metrics["FEM"] = mae_fem
-        print(f"  MAE (FEM):  {mae_fem:.6f}")
-    
-    # Avaliar ML Clássico
-    for name, model in trained_models:
-        y_pred = model.predict(Xte)
-        mae = mean_absolute_error(yte, y_pred)
-        results_metrics[name] = mae
-        print(f"  MAE ({name}):  {mae:.6f}")
-    
-    # =============================
-    # 6. RESULTADOS FINAIS
-    # =============================
-    print("\n" + "=" * 70)
-    print("RESULTADOS FINAIS - MAE (Mean Absolute Error)")
-    print("=" * 70)
-    
-    # Ordenar por MAE (menor é melhor)
-    sorted_results = sorted(results_metrics.items(), key=lambda x: x[1])
-    
-    print("\nRanking (menor MAE é melhor):")
-    for i, (name, mae) in enumerate(sorted_results, 1):
-        symbol = "🏆" if i == 1 else "  "
-        print(f"{symbol} {i}. {name:10s} - MAE: {mae:.6f}")
-    
-    best_model = sorted_results[0][0]
-    print(f"\n✓ Melhor modelo: {best_model}")
-    
-    # Salvar métricas em JSON
-    metrics_path = os.path.join(ckpt_dir, "metrics.json")
-    with open(metrics_path, "w") as f:
-        json.dump(results_metrics, f, indent=2)
-    print(f"✓ Métricas salvas em: {metrics_path}")
+        # Avaliar FEM
+        if model_fem:
+            print("\nAvaliando FEM...")
+            y_pred_fem = model_fem.predict(Xte)
+            # Handle NaNs from interpolation (outside mesh)
+            mask = ~np.isnan(y_pred_fem)
+            if not np.all(mask):
+                print(f"  ⚠️ Aviso: {np.sum(~mask)} pontos fora da malha FEM ignorados na avaliação.")
+                y_pred_fem = y_pred_fem[mask]
+                yte_fem = yte[mask]
+            else:
+                yte_fem = yte
+                
+            mae_fem = mean_absolute_error(yte_fem, y_pred_fem)
+            results_metrics["FEM"] = mae_fem
+            print(f"  MAE (FEM):  {mae_fem:.6f}")
+        
+        # Avaliar ML Clássico
+        for name, model in trained_models:
+            y_pred = model.predict(Xte)
+            mae = mean_absolute_error(yte, y_pred)
+            results_metrics[name] = mae
+            print(f"  MAE ({name}):  {mae:.6f}")
+        
+        # =============================
+        # 6. RESULTADOS FINAIS
+        # =============================
+        print("\n" + "=" * 70)
+        print("RESULTADOS FINAIS - MAE (Mean Absolute Error)")
+        print("=" * 70)
+        
+        # Ordenar por MAE (menor é melhor)
+        sorted_results = sorted(results_metrics.items(), key=lambda x: x[1])
+        
+        print("\nRanking (menor MAE é melhor):")
+        for i, (name, mae) in enumerate(sorted_results, 1):
+            symbol = "🏆" if i == 1 else "  "
+            print(f"{symbol} {i}. {name:10s} - MAE: {mae:.6f}")
+        
+        best_model = sorted_results[0][0]
+        print(f"\n✓ Melhor modelo: {best_model}")
+        
+        # Salvar métricas em JSON
+        metrics_path = os.path.join(ckpt_dir, "metrics.json")
+        with open(metrics_path, "w") as f:
+            json.dump(results_metrics, f, indent=2)
+        print(f"✓ Métricas salvas em: {metrics_path}")
+    else:
+        print("⚠️ Sem dados de teste para avaliar.")
     
     # =============================
     # 7. GERAR VISUALIZAÇÕES

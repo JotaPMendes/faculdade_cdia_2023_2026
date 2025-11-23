@@ -17,6 +17,20 @@ def create_electrostatic_mesh_problem(config):
     domain_points = loader.get_all_points()
     geom = dde.geometry.PointCloud(domain_points, boundary_points=None)
     
+    # Calcular Bounding Box da malha para ajustar Configuração
+    xmin, ymin = domain_points.min(axis=0)
+    xmax, ymax = domain_points.max(axis=0)
+    Lx_mesh = xmax - xmin
+    Ly_mesh = ymax - ymin
+    
+    print(f"✓ Malha carregada: Bounds [{xmin:.2f}, {xmax:.2f}] x [{ymin:.2f}, {ymax:.2f}]")
+    print(f"✓ Ajustando CONFIG: Lx={Lx_mesh:.2f}, Ly={Ly_mesh:.2f}")
+    
+    # Atualizar Config Global (Side-effect intencional para alinhar plots)
+    config["Lx"] = float(Lx_mesh)
+    config["Ly"] = float(Ly_mesh)
+    config["train_box"] = [float(xmin), float(ymin), float(xmax), float(ymax)]
+    
     # 2. Equação Diferencial (Laplace)
     # d2V/dx2 + d2V/dy2 = 0
     def pde(x, y):

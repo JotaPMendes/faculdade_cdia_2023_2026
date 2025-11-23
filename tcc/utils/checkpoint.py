@@ -32,7 +32,6 @@ class CheckpointManager:
     def _hash_config(self, config):
         """Gera um hash único para a configuração (ignorando chaves não essenciais se necessário)."""
         # Ordena chaves para garantir determinismo
-        # Converte listas para tuplas para ser hashable se necessário, mas json.dumps resolve
         config_str = json.dumps(config, sort_keys=True)
         return hashlib.md5(config_str.encode('utf-8')).hexdigest()
 
@@ -90,6 +89,9 @@ class CheckpointManager:
         Mantém apenas os N checkpoints mais recentes no diretório.
         DeepXDE gera arquivos: model.ckpt-STEP.ckpt.data..., .index, .meta
         """
+        if not os.path.exists(run_dir):
+            return
+
         # Agrupar arquivos por step
         files = os.listdir(run_dir)
         checkpoints = {} # step -> [files]
@@ -118,7 +120,3 @@ class CheckpointManager:
                         os.remove(file_path)
                     except OSError as e:
                         print(f"Erro ao deletar {file_path}: {e}")
-                
-                # Remover entrada do arquivo 'checkpoint' (texto) se necessário
-                # O DeepXDE gerencia isso, mas se deletarmos os arquivos, ele pode reclamar se tentar restaurar
-                # O ideal é deixar o DeepXDE gerenciar, mas ele não tem max_to_keep nativo exposto fácil no callback

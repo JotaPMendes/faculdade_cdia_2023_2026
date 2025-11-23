@@ -14,34 +14,27 @@ def plot_results(problem, model_pinn, model_fem, regressors, results_metrics, cf
 def _plot_spatial_comparison(problem, model_pinn, model_fem, regressors, metrics, cfg, save_dir=None):
     """
     Gera mapas de contorno (Contour Plots) para o Poisson 2D e Eletrostática.
-    Destaque: Desenha uma caixa vermelha mostrando a área de treino.
+    Linha 1: Predições (Real, FEM, PINN, ML)
+    Linha 2: Erros Absolutos (|Pred - Real|)
     """
     # 1. Criação do Grid de Visualização
-    # Tenta usar Lx/Ly do config ou padrão 1.0
     Lx = cfg.get("Lx", 1.0)
-    # Para Y, assumimos 1.0 se não especificado (ou Lx se for quadrado?)
-    # Vamos manter 1.0 padrão para Y por enquanto ou usar train_box
-    Ly = 1.0
-    
-    # Se for electrostatic_mesh, o domínio pode ser diferente.
-    # Mas para simplificar, vamos usar [0, Lx] x [0, 1] que parece ser o padrão do config atual
+    Ly = 1.0 # Assumindo quadrado se não especificado
     
     gx = np.linspace(0, Lx, 100)
     gy = np.linspace(0, Ly, 100)
     GX, GY = np.meshgrid(gx, gy)
     Grid = np.stack([GX.ravel(), GY.ravel()], axis=1)
 
-    # 2. Previsões
+    # 2. Previsões e Referência
     # Ground Truth
     if problem.get("u_true") is not None:
         U_true = problem["u_true"](Grid).reshape(100, 100)
         title_true = "Solução Exata (Física)"
     elif model_fem is not None:
-        # Se não tem analítica, usa FEM como referência
         U_true = model_fem.predict(Grid).reshape(100, 100)
         title_true = "Referência (FEM)"
     else:
-        # Fallback
         U_true = np.zeros((100, 100))
         title_true = "Referência N/A"
     
@@ -53,12 +46,10 @@ def _plot_spatial_comparison(problem, model_pinn, model_fem, regressors, metrics
     if model_fem:
         U_fem = model_fem.predict(Grid).reshape(100, 100)
     
-    # Escolher o melhor ML Clássico (baseado na menor métrica MAE passada)
-    # Exclui 'PINN' e 'FEM' da busca para achar o melhor regressor
+    # Melhor ML
     ml_candidates = [k for k in metrics.keys() if k not in ["PINN", "FEM"]]
     if ml_candidates:
         best_ml_name = min(ml_candidates, key=lambda k: metrics[k])
-        # Encontra o objeto do modelo correspondente na lista
         best_ml_model = next(model for name, model in regressors if name == best_ml_name)
         U_ml = best_ml_model.predict(Grid).reshape(100, 100)
     else:
@@ -66,55 +57,82 @@ def _plot_spatial_comparison(problem, model_pinn, model_fem, regressors, metrics
         U_ml = np.zeros((100, 100))
 
     # 3. Plotagem
-    # Layout: 1x4 (Real, FEM, PINN, ML)
-    fig, ax = plt.subplots(1, 4, figsize=(20, 5), constrained_layout=True)
+    # Layout: 2x4 (Predições em cima, Erros embaixo)
+    fig, ax = plt.subplots(2, 4, figsize=(20, 10), constrained_layout=True)
     
-    # Limites da caixa de treino para desenhar
+    # Limites da caixa de treino
     bx0, by0, bx1, by1 = cfg["train_box"]
     box_x = [bx0, bx1, bx1, bx0, bx0]
     box_y = [by0, by0, by1, by1, by0]
 
-    # Helper para plotar
-    def plot_subplot(axis, data, title, show_box=True):
-        # Usa vmin/vmax fixos baseados no Real para manter a escala de cores igual
-        # Se U_true for todo zero (N/A), usa min/max do próprio data
+    # Helper para plotar predição
+    def plot_pred(axis, data, title, show_box=True):
         vmin = U_true.min() if U_true.any() else data.min()
         vmax = U_true.max() if U_true.any() else data.max()
-        
-        pcm = axis.contourf(GX, GY, data, levels=50, cmap="viridis", 
-                            vmin=vmin, vmax=vmax)
+        pcm = axis.contourf(GX, GY, data, levels=50, cmap="viridis", vmin=vmin, vmax=vmax)
         axis.set_title(title, fontsize=11)
         axis.set_xlabel("x")
         axis.set_ylabel("y")
         if show_box:
             axis.plot(box_x, box_y, 'r--', lw=2.5, label="Área de Treino")
-            if axis == ax[0]: # Legenda só no primeiro para não poluir
-                axis.legend(loc="upper right", framealpha=0.9)
+            if axis == ax[0,0]: axis.legend(loc="upper right", framealpha=0.9)
         return pcm
 
-    # Plot A: Real/Referência
-    pcm = plot_subplot(ax[0], U_true, title_true)
-    fig.colorbar(pcm, ax=ax[0], shrink=0.6)
+    # Helper para plotar erro
+    def plot_error(axis, data, ref, title):
+        error = np.abs(data - ref)
+        # Usar escala comum para erros? Ou individual? Individual destaca melhor onde está o erro.
+        pcm = axis.contourf(GX, GY, error, levels=50, cmap="inferno")
+        axis.set_title(title, fontsize=11)
+        axis.set_xlabel("x")
+        axis.set_ylabel("y")
+        return pcm
 
-    # Plot B: FEM
+    # --- LINHA 1: PREDIÇÕES ---
+    
+    # A: Real/Referência
+    pcm1 = plot_pred(ax[0,0], U_true, title_true)
+    fig.colorbar(pcm1, ax=ax[0,0], shrink=0.6)
+    
+    # B: FEM
     if U_fem is not None:
         fem_mae = metrics.get("FEM", 0.0)
-        plot_subplot(ax[1], U_fem, f"FEM (Numérico)\nMAE: {fem_mae:.2e}")
-        fig.colorbar(pcm, ax=ax[1], shrink=0.6)
+        plot_pred(ax[0,1], U_fem, f"FEM (Numérico)\nMAE: {fem_mae:.2e}")
+        fig.colorbar(pcm1, ax=ax[0,1], shrink=0.6)
     else:
-        ax[1].text(0.5, 0.5, "FEM N/A", ha='center')
+        ax[0,1].text(0.5, 0.5, "FEM N/A", ha='center')
 
-    # Plot C: PINN
+    # C: PINN
     pinn_mae = metrics.get("PINN", 0.0)
-    plot_subplot(ax[2], U_pinn, f"PINN (DeepXDE)\nMAE Extrapolação: {pinn_mae:.2e}")
-    fig.colorbar(pcm, ax=ax[2], shrink=0.6)
+    plot_pred(ax[0,2], U_pinn, f"PINN (DeepXDE)\nMAE: {pinn_mae:.2e}")
+    fig.colorbar(pcm1, ax=ax[0,2], shrink=0.6)
 
-    # Plot D: Melhor ML
+    # D: ML
     ml_mae = metrics.get(best_ml_name, 0.0)
-    plot_subplot(ax[3], U_ml, f"Melhor ML: {best_ml_name}\nMAE Extrapolação: {ml_mae:.2e}")
-    fig.colorbar(pcm, ax=ax[3], shrink=0.6)
+    plot_pred(ax[0,3], U_ml, f"Melhor ML: {best_ml_name}\nMAE: {ml_mae:.2e}")
+    fig.colorbar(pcm1, ax=ax[0,3], shrink=0.6)
 
-    plt.suptitle(f"Comparação de Generalização Espacial - {cfg['problem']}", fontsize=16)
+    # --- LINHA 2: ERROS ---
+    
+    # A: Erro Referência (Zero)
+    plot_error(ax[1,0], U_true, U_true, "Erro Referência (Zero)")
+    
+    # B: Erro FEM (Zero se for a referência)
+    if U_fem is not None:
+        pcm_err = plot_error(ax[1,1], U_fem, U_true, "Erro Absoluto FEM")
+        fig.colorbar(pcm_err, ax=ax[1,1], shrink=0.6)
+    else:
+        ax[1,1].text(0.5, 0.5, "N/A", ha='center')
+
+    # C: Erro PINN
+    pcm_err_pinn = plot_error(ax[1,2], U_pinn, U_true, "Erro Absoluto PINN")
+    fig.colorbar(pcm_err_pinn, ax=ax[1,2], shrink=0.6)
+
+    # D: Erro ML
+    pcm_err_ml = plot_error(ax[1,3], U_ml, U_true, f"Erro Absoluto {best_ml_name}")
+    fig.colorbar(pcm_err_ml, ax=ax[1,3], shrink=0.6)
+
+    plt.suptitle(f"Comparação Espacial e Erros - {cfg['problem']}", fontsize=16)
     
     if save_dir:
         import os
@@ -127,54 +145,41 @@ def _plot_spatial_comparison(problem, model_pinn, model_fem, regressors, metrics
 def _plot_temporal_extrapolation(problem, model_pinn, regressors, metrics, cfg, save_dir=None):
     """
     Gera curvas 1D (Heat/Wave) mostrando a evolução no tempo.
-    Destaque: Linha vertical separando Treino (passado) vs Avaliação (futuro).
     """
-    # 1. Configuração do tempo para plot
     t_full = np.linspace(0, cfg["T_eval"], 300)
-    
-    # Escolhemos um ponto espacial x0 para "sondar" (Probe)
-    # Pega o ponto mais central da lista de x0 configurada
     x_probe = cfg["x0_list"][len(cfg["x0_list"])//2]
     
-    # Monta a matriz de entrada [x, t] constante em x, variando em t
     X_probe = np.zeros((len(t_full), 2))
     X_probe[:, 0] = x_probe
     X_probe[:, 1] = t_full
 
-    # 2. Previsões
     if problem.get("u_true") is not None:
         y_true = problem["u_true"](X_probe).ravel()
     else:
-        y_true = np.zeros_like(t_full) # Fallback
+        y_true = np.zeros_like(t_full)
 
     y_pinn = model_pinn.predict(X_probe).ravel()
 
-    # 3. Plotagem
     plt.figure(figsize=(10, 6))
-    
-    # Fundo para diferenciar as zonas
     plt.axvspan(0, cfg["T_train"], color='green', alpha=0.05, label="Zona de Treino")
     plt.axvspan(cfg["T_train"], cfg["T_eval"], color='red', alpha=0.05, label="Zona de Extrapolação")
     
-    # Curvas
     if problem.get("u_true") is not None:
         plt.plot(t_full, y_true, 'k-', lw=2.5, label="Solução Exata")
     
     plt.plot(t_full, y_pinn, 'r--', lw=2, label=f"PINN (MAE={metrics.get('PINN',0):.1e})")
     
-    # Plotar todos os regressores (linhas finas)
     colors = plt.cm.tab10(np.linspace(0, 1, len(regressors)))
     for i, (name, model) in enumerate(regressors):
         y_ml = model.predict(X_probe).ravel()
         plt.plot(t_full, y_ml, linestyle=':', lw=1.5, color=colors[i], 
                  label=f"{name} (MAE={metrics.get(name,0):.1e})")
 
-    # Decorações
     plt.axvline(cfg["T_train"], color="gray", linestyle="-", lw=1)
     plt.title(f"Capacidade de Extrapolação Temporal (x={x_probe}) - {cfg['problem']}", fontsize=14)
     plt.xlabel("Tempo (t)", fontsize=12)
     plt.ylabel(f"u(x={x_probe}, t)", fontsize=12)
-    plt.legend(loc="upper left", bbox_to_anchor=(1, 1)) # Legenda fora do gráfico
+    plt.legend(loc="upper left", bbox_to_anchor=(1, 1))
     plt.grid(True, linestyle="--", alpha=0.5)
     plt.tight_layout()
     
