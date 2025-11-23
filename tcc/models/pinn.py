@@ -92,10 +92,10 @@ def train_pinn(problem, config):
         early_stopping = dde.callbacks.EarlyStopping(min_delta=1e-4, patience=2000)
         
         # 3. Cleanup (já existente)
-        cleanup_cb = CleanupCallback(ckpt_manager, config)
+        cleanup_cb = CleanupCallback(ckpt_manager, ckpt_dir)
         
         # Treinar (Adam)
-        model.train(iterations=remaining_iters, callbacks=[resampler, cleanup_cb, early_stopping], display_every=500)
+        model.train(iterations=remaining_iters, callbacks=[resampler, checker, cleanup_cb, early_stopping], display_every=500)
     else:
         print(f">>> Treinamento ADAM já concluído (Step {latest_step} >= {total_adam_iters}). Pulando...")
 
