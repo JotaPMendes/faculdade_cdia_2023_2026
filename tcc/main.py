@@ -25,8 +25,8 @@ import os
 from problems.poisson2d import create_poisson_2d_problem
 from problems.heat import create_heat_problem
 from problems.wave import create_wave_problem
-from problems.custom_mesh import create_custom_mesh_problem
-from problems.heat_mesh import create_heat_mesh_problem
+from problems.electrostatic_mesh import create_electrostatic_mesh_problem
+from solver import ElectrostaticSolver
 
 def get_problem(config):
     name = config["problem"]
@@ -36,10 +36,8 @@ def get_problem(config):
         return create_heat_problem(config)
     elif name == "wave_1d":
         return create_wave_problem(config)
-    elif name == "custom_mesh":
-        return create_custom_mesh_problem(config)
-    elif name == "heat_mesh":
-        return create_heat_mesh_problem(config)
+    elif name == "electrostatic_mesh":
+        return create_electrostatic_mesh_problem(config)
     else:
         raise ValueError(f"Problema desconhecido: {name}")
 
@@ -87,6 +85,42 @@ def main():
         model_fem = PoissonFEM(problem, Nx=50, Ny=50)
         model_fem.solve()
         print("✓ FEM resolvido com sucesso!")
+    elif CONFIG["problem"] == "electrostatic_mesh":
+        print("\n" + "=" * 70)
+        print("ETAPA 2.1: Resolvendo FEM (Electrostatic Solver)...")
+        print("=" * 70)
+        fem_data = problem["fem_data"]
+        # Instantiate custom solver
+        solver = ElectrostaticSolver(
+            fem_data["nodes"],
+            fem_data["nodeTags"],
+            fem_data["triElements"],
+            fem_data["elements"],
+            fem_data["boundaryConditions"]
+        )
+        solver.assemble_global_matrix_and_vector()
+        solver.apply_boundary_conditions()
+        solver.solve()
+        
+        # Wrap solver to behave like model_fem (predict method)
+        class FEMWrapper:
+            def __init__(self, solver):
+                self.solver = solver
+                # Pre-calculate field for potential use
+                self.solver.calculate_electric_field()
+                
+            def predict(self, X):
+                # X is (N, 2). We need to interpolate potential at X.
+                # The custom solver doesn't have a built-in interpolator for arbitrary points easily accessible.
+                # For comparison, we can use scipy.interpolate.griddata or LinearNDInterpolator
+                from scipy.interpolate import LinearNDInterpolator
+                points = self.solver.nodes
+                values = self.solver.get_potential()
+                interp = LinearNDInterpolator(points, values, fill_value=0.0)
+                return interp(X)
+
+        model_fem = FEMWrapper(solver)
+        print("✓ FEM (Electrostatic) resolvido com sucesso!")
     
     # =============================
     # 3. GERAR DADOS PARA ML
@@ -94,7 +128,8 @@ def main():
     print("\n" + "=" * 70)
     print("ETAPA 3: Gerando dados para ML Clássico...")
     print("=" * 70)
-    Xtr, ytr, Xte, yte = generate_data_for_ml(problem, CONFIG)
+    # Pass model_fem to generate_data_for_ml to use as ground truth if u_true is missing
+    Xtr, ytr, Xte, yte = generate_data_for_ml(problem, CONFIG, model_fem)
     print(f"✓ Dados de treino: X_train.shape = {Xtr.shape}, y_train.shape = {ytr.shape}")
     print(f"✓ Dados de teste: X_test.shape = {Xte.shape}, y_test.shape = {yte.shape}")
     
@@ -138,7 +173,16 @@ def main():
     if model_fem:
         print("\nAvaliando FEM...")
         y_pred_fem = model_fem.predict(Xte)
-        mae_fem = mean_absolute_error(yte, y_pred_fem)
+        # Handle NaNs from interpolation (outside mesh)
+        mask = ~np.isnan(y_pred_fem)
+        if not np.all(mask):
+            print(f"  ⚠️ Aviso: {np.sum(~mask)} pontos fora da malha FEM ignorados na avaliação.")
+            y_pred_fem = y_pred_fem[mask]
+            yte_fem = yte[mask]
+        else:
+            yte_fem = yte
+            
+        mae_fem = mean_absolute_error(yte_fem, y_pred_fem)
         results_metrics["FEM"] = mae_fem
         print(f"  MAE (FEM):  {mae_fem:.6f}")
     

@@ -6,43 +6,64 @@ def plot_results(problem, model_pinn, model_fem, regressors, results_metrics, cf
     Função principal de plotagem. Detecta o tipo de problema e chama
     o visualizador específico.
     """
-    if cfg["problem"] == "poisson_2d":
+    if cfg["problem"] in ["poisson_2d", "electrostatic_mesh"]:
         _plot_spatial_comparison(problem, model_pinn, model_fem, regressors, results_metrics, cfg, save_dir)
     else:
         _plot_temporal_extrapolation(problem, model_pinn, regressors, results_metrics, cfg, save_dir)
 
 def _plot_spatial_comparison(problem, model_pinn, model_fem, regressors, metrics, cfg, save_dir=None):
     """
-    Gera mapas de contorno (Contour Plots) para o Poisson 2D.
+    Gera mapas de contorno (Contour Plots) para o Poisson 2D e Eletrostática.
     Destaque: Desenha uma caixa vermelha mostrando a área de treino.
     """
-    # 1. Criação do Grid de Visualização (100x100)
-    gx = np.linspace(0, 1, 100)
-    gy = np.linspace(0, 1, 100)
+    # 1. Criação do Grid de Visualização
+    # Tenta usar Lx/Ly do config ou padrão 1.0
+    Lx = cfg.get("Lx", 1.0)
+    # Para Y, assumimos 1.0 se não especificado (ou Lx se for quadrado?)
+    # Vamos manter 1.0 padrão para Y por enquanto ou usar train_box
+    Ly = 1.0
+    
+    # Se for electrostatic_mesh, o domínio pode ser diferente.
+    # Mas para simplificar, vamos usar [0, Lx] x [0, 1] que parece ser o padrão do config atual
+    
+    gx = np.linspace(0, Lx, 100)
+    gy = np.linspace(0, Ly, 100)
     GX, GY = np.meshgrid(gx, gy)
     Grid = np.stack([GX.ravel(), GY.ravel()], axis=1)
 
     # 2. Previsões
     # Ground Truth
-    U_true = problem["u_true"](Grid).reshape(100, 100)
+    if problem.get("u_true") is not None:
+        U_true = problem["u_true"](Grid).reshape(100, 100)
+        title_true = "Solução Exata (Física)"
+    elif model_fem is not None:
+        # Se não tem analítica, usa FEM como referência
+        U_true = model_fem.predict(Grid).reshape(100, 100)
+        title_true = "Referência (FEM)"
+    else:
+        # Fallback
+        U_true = np.zeros((100, 100))
+        title_true = "Referência N/A"
     
     # PINN
     U_pinn = model_pinn.predict(Grid).reshape(100, 100)
     
-    # FEM (se disponível)
+    # FEM (se disponível e não usado como Truth)
     U_fem = None
     if model_fem:
         U_fem = model_fem.predict(Grid).reshape(100, 100)
     
     # Escolher o melhor ML Clássico (baseado na menor métrica MAE passada)
     # Exclui 'PINN' e 'FEM' da busca para achar o melhor regressor
-    best_ml_name = min(
-        [k for k in metrics.keys() if k not in ["PINN", "FEM"]], 
-        key=lambda k: metrics[k]
-    )
-    # Encontra o objeto do modelo correspondente na lista
-    best_ml_model = next(model for name, model in regressors if name == best_ml_name)
-    U_ml = best_ml_model.predict(Grid).reshape(100, 100)
+    ml_candidates = [k for k in metrics.keys() if k not in ["PINN", "FEM"]]
+    if ml_candidates:
+        best_ml_name = min(ml_candidates, key=lambda k: metrics[k])
+        # Encontra o objeto do modelo correspondente na lista
+        best_ml_model = next(model for name, model in regressors if name == best_ml_name)
+        U_ml = best_ml_model.predict(Grid).reshape(100, 100)
+    else:
+        best_ml_name = "N/A"
+        U_ml = np.zeros((100, 100))
 
     # 3. Plotagem
     # Layout: 1x4 (Real, FEM, PINN, ML)
@@ -56,8 +77,12 @@ def _plot_spatial_comparison(problem, model_pinn, model_fem, regressors, metrics
     # Helper para plotar
     def plot_subplot(axis, data, title, show_box=True):
         # Usa vmin/vmax fixos baseados no Real para manter a escala de cores igual
+        # Se U_true for todo zero (N/A), usa min/max do próprio data
+        vmin = U_true.min() if U_true.any() else data.min()
+        vmax = U_true.max() if U_true.any() else data.max()
+        
         pcm = axis.contourf(GX, GY, data, levels=50, cmap="viridis", 
-                            vmin=U_true.min(), vmax=U_true.max())
+                            vmin=vmin, vmax=vmax)
         axis.set_title(title, fontsize=11)
         axis.set_xlabel("x")
         axis.set_ylabel("y")
@@ -67,8 +92,8 @@ def _plot_spatial_comparison(problem, model_pinn, model_fem, regressors, metrics
                 axis.legend(loc="upper right", framealpha=0.9)
         return pcm
 
-    # Plot A: Real
-    pcm = plot_subplot(ax[0], U_true, "Solução Exata (Física)")
+    # Plot A: Real/Referência
+    pcm = plot_subplot(ax[0], U_true, title_true)
     fig.colorbar(pcm, ax=ax[0], shrink=0.6)
 
     # Plot B: FEM
@@ -117,7 +142,11 @@ def _plot_temporal_extrapolation(problem, model_pinn, regressors, metrics, cfg, 
     X_probe[:, 1] = t_full
 
     # 2. Previsões
-    y_true = problem["u_true"](X_probe).ravel()
+    if problem.get("u_true") is not None:
+        y_true = problem["u_true"](X_probe).ravel()
+    else:
+        y_true = np.zeros_like(t_full) # Fallback
+
     y_pinn = model_pinn.predict(X_probe).ravel()
 
     # 3. Plotagem
@@ -128,7 +157,9 @@ def _plot_temporal_extrapolation(problem, model_pinn, regressors, metrics, cfg, 
     plt.axvspan(cfg["T_train"], cfg["T_eval"], color='red', alpha=0.05, label="Zona de Extrapolação")
     
     # Curvas
-    plt.plot(t_full, y_true, 'k-', lw=2.5, label="Solução Exata")
+    if problem.get("u_true") is not None:
+        plt.plot(t_full, y_true, 'k-', lw=2.5, label="Solução Exata")
+    
     plt.plot(t_full, y_pinn, 'r--', lw=2, label=f"PINN (MAE={metrics.get('PINN',0):.1e})")
     
     # Plotar todos os regressores (linhas finas)

@@ -1,5 +1,5 @@
 CONFIG = {
-    "problem": "heat_mesh",
+    "problem": "electrostatic_mesh",
     "mesh_file": "domain.msh", # MeshLoader will look in meshes/
     "alpha": 0.1,              # Difusividade
     "c": 1.0,                  # Velocidade da onda
