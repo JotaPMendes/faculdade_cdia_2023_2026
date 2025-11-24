@@ -6,7 +6,10 @@ def plot_results(problem, model_pinn, model_fem, regressors, results_metrics, cf
     Função principal de plotagem. Detecta o tipo de problema e chama
     o visualizador específico.
     """
-    if cfg["problem"] in ["poisson_2d", "electrostatic_mesh"]:
+    # Decisão de plotagem baseada no tipo de problema e flag de malha
+    use_mesh = problem.get("use_mesh", False)
+    
+    if use_mesh or cfg["problem"] == "poisson_2d":
         _plot_spatial_comparison(problem, model_pinn, model_fem, regressors, results_metrics, cfg, save_dir)
     else:
         _plot_temporal_extrapolation(problem, model_pinn, regressors, results_metrics, cfg, save_dir)
@@ -19,7 +22,7 @@ def _plot_spatial_comparison(problem, model_pinn, model_fem, regressors, metrics
     """
     # 1. Criação do Grid de Visualização
     Lx = cfg.get("Lx", 1.0)
-    Ly = 1.0 # Assumindo quadrado se não especificado
+    Ly = cfg.get("Ly", 1.0) # Agora usa Ly do config também
     
     gx = np.linspace(0, Lx, 100)
     gy = np.linspace(0, Ly, 100)

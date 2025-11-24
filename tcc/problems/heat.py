@@ -33,4 +33,4 @@ def create_heat_problem(cfg):
         return tf.concat([x_norm, t_norm], axis=1)
     net.apply_feature_transform(feature_transform)
 
-    return dict(kind="time", u_true=u_true, data=data, net=net)
+    return dict(kind="time", u_true=u_true, data=data, net=net, use_mesh=False)
