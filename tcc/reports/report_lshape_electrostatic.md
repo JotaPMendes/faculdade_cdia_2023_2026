@@ -7,7 +7,7 @@ Este experimento comparou a performance de **Physics-Informed Neural Networks (P
 
 ## 2. Configuração do Experimento
 - **Problema**: electrostatic_mesh
-- **Malha**: `meshes/lshape.msh` (L-Shape)
+- **Malha**: `lshape.msh` (L-Shape)
 - **Singularidade**: Canto reentrante em (0,0)
 - **Condições de Contorno**:
     - Topo: 100V (Normalizado para 1.0 no treino)
@@ -34,7 +34,7 @@ Abaixo o Erro Médio Absoluto (MAE) comparado ao FEM (Ground Truth numérico):
 A prova definitiva da superioridade da PINN em resolução está na visualização interativa.
 
 ### [>> ABRIR VISUALIZAÇÃO INTERATIVA <<](interactive_comparison_v2.html)
-*(Abra este arquivo no navegador para ver o Zoom Infinito)*
+*(Baixe este arquivo para visualizar ou use um visualizador de HTML)*
 
 **O que observar:**
 1.  **Aba "Zoom 1D"**: Compare a curva suave da PINN com os segmentos quebrados do FEM perto da singularidade.
@@ -44,7 +44,7 @@ A prova definitiva da superioridade da PINN em resolução está na visualizaç�
 - **Relatório**: `report_lshape_electrostatic.md` (este arquivo)
 - **Visualização**: [`interactive_comparison_v2.html`](interactive_comparison_v2.html)
 - **Gráfico Estático**: [`comparison.png`](comparison.png)
-- **Malha Original**: `/Users/insider/faculdade_cdia_2023_2026/tcc/meshes/lshape.msh`
+- **Malha Original**: [`../meshes/lshape.msh`](../meshes/lshape.msh)
 
 ## 6. Conclusão
 A PINN demonstrou com sucesso a capacidade de representar a solução como uma função contínua e diferenciável, eliminando os artefatos de malha típicos do FEM em regiões de singularidade. Embora o FEM seja extremamente preciso nos nós, a PINN oferece uma representação superior ("Infinite Zoom") no interior do domínio.
