@@ -6,6 +6,9 @@ def train_pinn(problem, config):
     data, net = problem["data"], problem["net"]
     model = dde.Model(data, net)
     
+    # Obter configurações específicas do problema (se existirem)
+    pinn_cfg = problem.get("pinn_config", {})
+    
     # Pesos dinâmicos baseados no número de constraints
     # Ex: Heat -> 4 perdas (1 PDE + 2 BCs + 1 IC)
     num_losses = len(data.bcs) + (1 if data.pde is not None else 0)
@@ -58,7 +61,8 @@ def train_pinn(problem, config):
             model.train_state.step = latest_step
     
     # Treinamento Adam
-    total_adam_iters = config.get("train_steps_adam", 15000)
+    # Prioridade: 1. pinn_config (do problema), 2. config (global), 3. Default
+    total_adam_iters = pinn_cfg.get("train_steps_adam", config.get("train_steps_adam", 15000))
     remaining_iters = total_adam_iters - latest_step
     
     if remaining_iters > 0:
@@ -69,7 +73,7 @@ def train_pinn(problem, config):
         print(f">>> Treinamento ADAM já concluído (Step {latest_step} >= {total_adam_iters}). Pulando...")
 
     # Refinamento L-BFGS
-    lbfgs_iters = config.get("train_steps_lbfgs", 5000)
+    lbfgs_iters = pinn_cfg.get("train_steps_lbfgs", config.get("train_steps_lbfgs", 5000))
     if lbfgs_iters > 0:
         print(f">>> Refinando com L-BFGS por {lbfgs_iters} iterações...")
         model.compile("L-BFGS", loss_weights=loss_weights)

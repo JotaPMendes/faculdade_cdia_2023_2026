@@ -15,6 +15,12 @@ def create_electrostatic_mesh_problem(config):
     
     # 1. Geometria
     domain_points = loader.get_all_points()
+    
+    # Filtrar singularidade exata (0,0) para evitar gradientes infinitos
+    # Tolerância pequena para garantir
+    mask_singularity = ~((np.abs(domain_points[:,0]) < 1e-6) & (np.abs(domain_points[:,1]) < 1e-6))
+    domain_points = domain_points[mask_singularity]
+    
     geom = dde.geometry.PointCloud(domain_points, boundary_points=None)
     
     # Calcular Bounding Box da malha para ajustar Configuração
@@ -41,35 +47,45 @@ def create_electrostatic_mesh_problem(config):
     # 3. Condições de Contorno
     # Mapear nomes físicos para valores de potencial
     # Exemplo baseado no notebook do professor (MEF.ipynb):
-    # Top: 100V, Outros: 0V
+    # Top: 100V -> Normalizado para 1.0
+    # Outros: 0V
     bcs = []
+    
+    # Normalização: Trabalhar com [0, 1] e reescalar na visualização
+    V_MAX = 100.0
+    
     bc_configs = {
-        "Top": 100.0,
+        "Top": 1.0, # Era 100.0
         "Bottom": 0.0,
         "Left": 0.0,
-        "Right": 0.0
+        "Right": 0.0,
+        "Inner": 0.0
     }
     
-    # Para o solver FEM
+    # Para o solver FEM (Manter escala original ou normalizar? Vamos manter original no FEM e comparar normalizado)
+    # Ou melhor: Normalizar tudo para ser consistente.
+    # Se o FEM usar 100 e a PINN usar 1, a comparação falha.
+    # Vamos configurar o FEM para usar 100 (física real) e a PINN para usar 1 (numérico).
+    # Na hora de comparar/plotar, multiplicamos a PINN por 100.
+    
     fem_boundary_conditions = {}
 
     for name, val in bc_configs.items():
         points = loader.get_boundary_points(name)
         if len(points) > 0:
-            # DeepXDE BC
+            # DeepXDE BC (Normalizado)
             values = np.full((len(points), 1), val)
             bc = dde.icbc.PointSetBC(points, values)
             bcs.append(bc)
             
-            # FEM BC (armazenar nodes ids)
-            # MeshLoader.boundary_nodes tem os índices
+            # FEM BC (Escala Real = val * V_MAX)
             if name in loader.boundary_nodes:
                 fem_boundary_conditions[name] = {
                     'nodes': list(loader.boundary_nodes[name]),
-                    'potential': val
+                    'potential': val * V_MAX
                 }
             
-            print(f"✓ BC '{name}' carregada: {val}V ({len(points)} pontos).")
+            print(f"✓ BC '{name}' carregada: {val} (PINN) / {val*V_MAX}V (FEM) ({len(points)} pontos).")
 
     # 4. Dados DeepXDE
     data = dde.data.PDE(
@@ -82,12 +98,12 @@ def create_electrostatic_mesh_problem(config):
         train_distribution="pseudo"
     )
     
-    # Rede Neural
-    net = dde.nn.MsFFN(
+    # Otimização: FNN profunda é robusta para geometria complexa
+    # MsFFN pode ser instável se não calibrada, FNN é mais segura aqui.
+    net = dde.nn.FNN(
         [2] + [50] * 4 + [1],
         "tanh",
-        "Glorot normal",
-        sigmas=[1, 5, 10]
+        "Glorot normal"
     )
     
     # 5. Preparar dados para o Solver FEM (Professor)
@@ -111,10 +127,22 @@ def create_electrostatic_mesh_problem(config):
         "boundaryConditions": fem_boundary_conditions
     }
     
+    pinn_config = {
+        "arch_type": "FNN",
+        "layers": [2] + [50]*4 + [1],
+        "activation": "tanh",
+        "initializer": "Glorot normal",
+        "train_steps_adam": 20000,
+        "train_steps_lbfgs": 10000
+    }
+    
     return {
         "data": data,
         "net": net,
         "kind": "electrostatic",
         "fem_data": fem_data, # Dados extras para o solver FEM
-        "u_true": None # Não temos solução analítica
+        "u_true": None, # Não temos solução analítica
+        "use_mesh": True,
+        "pinn_config": pinn_config,
+        "scaling_factor": V_MAX # Passar fator de escala para visualizador
     }

@@ -37,7 +37,7 @@ def create_poisson_2d_problem(cfg):
                         num_domain=10000, num_boundary=2000, num_test=2000,
                         train_distribution="Sobol")
 
-    # Rede Multi-scale com ativação tanh (mais estável com MsFFN) e mais escalas Fourier
+    # Otimização: MsFFN é superior para Poisson (frequências espaciais)
     net = dde.nn.MsFFN([2] + [64]*5 + [1], "tanh", "Glorot uniform", sigmas=[1, 5, 10])
     
     # Feature transform (Normaliza [bx0, bx1] -> [-1, 1])
@@ -53,4 +53,14 @@ def create_poisson_2d_problem(cfg):
     
     net.apply_feature_transform(feature_transform)
 
-    return dict(kind="space", u_true=u_true, data=data, net=net)
+    pinn_config = {
+        "arch_type": "MsFFN",
+        "layers": [2] + [64]*5 + [1],
+        "activation": "tanh",
+        "initializer": "Glorot uniform",
+        "sigmas": [1, 5, 10],
+        "train_steps_adam": 10000,
+        "train_steps_lbfgs": 10000
+    }
+
+    return dict(kind="space", u_true=u_true, data=data, net=net, use_mesh=False, pinn_config=pinn_config)

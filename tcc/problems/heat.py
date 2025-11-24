@@ -26,11 +26,22 @@ def create_heat_problem(cfg):
     data = dde.data.TimePDE(geomtime, pde, [bcL, bcR, ic],
                             num_domain=4000, num_boundary=400, num_initial=400, num_test=1000)
     
-    net = dde.nn.FNN([2] + [64]*4 + [1], "tanh", "Glorot uniform")
+    # Otimização: Heat Equation é suave, tanh é ideal.
+    net = dde.nn.FNN([2] + [64]*3 + [1], "tanh", "Glorot uniform")
+    
     def feature_transform(X):
         x_norm = 2.0 * (X[:, 0:1] / Lx) - 1.0
         t_norm = 2.0 * (X[:, 1:2] / T_train) - 1.0
         return tf.concat([x_norm, t_norm], axis=1)
     net.apply_feature_transform(feature_transform)
 
-    return dict(kind="time", u_true=u_true, data=data, net=net, use_mesh=False)
+    pinn_config = {
+        "arch_type": "FNN",
+        "layers": [2] + [64]*3 + [1],
+        "activation": "tanh",
+        "initializer": "Glorot uniform",
+        "train_steps_adam": 15000,
+        "train_steps_lbfgs": 10000
+    }
+
+    return dict(kind="time", u_true=u_true, data=data, net=net, use_mesh=False, pinn_config=pinn_config)
