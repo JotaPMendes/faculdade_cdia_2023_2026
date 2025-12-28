@@ -3,7 +3,7 @@ from .wave import create_wave_problem
 from .poisson2d import create_poisson_2d_problem
 from .electrostatic_mesh import create_electrostatic_mesh_problem
 
-def make_problem(cfg):
+def get_problem(cfg):
     if cfg["problem"] == "heat_1d":
         return create_heat_problem(cfg)
     elif cfg["problem"] == "wave_1d":

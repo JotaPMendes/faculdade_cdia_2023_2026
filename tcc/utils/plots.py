@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
 def plot_results(problem, model_pinn, model_fem, regressors, results_metrics, cfg, save_dir=None):
     """
@@ -13,6 +14,55 @@ def plot_results(problem, model_pinn, model_fem, regressors, results_metrics, cf
         _plot_spatial_comparison(problem, model_pinn, model_fem, regressors, results_metrics, cfg, save_dir)
     else:
         _plot_temporal_extrapolation(problem, model_pinn, regressors, results_metrics, cfg, save_dir)
+
+def plot_comparison(X_test, y_test, y_pred_pinn, ml_preds, output_plot):
+    """
+    Plota comparação genérica entre Ground Truth, PINN e ML Models.
+    Usado pelo main.py para casos gerais.
+    """
+    plt.figure(figsize=(10, 6))
+    
+    # Se for 1D (X_test tem dimensão 1 ou variamos apenas 1 dimensão)
+    if X_test.shape[1] == 1 or (X_test.shape[1] == 2 and (X_test[:,1] == X_test[0,1]).all()):
+        # Plot 1D
+        if X_test.shape[1] == 2:
+            x_val = X_test[:, 0]
+        else:
+            x_val = X_test[:, 0]
+            
+        # Ordenar para plotar linhas
+        idx = np.argsort(x_val)
+        x_sorted = x_val[idx]
+        
+        plt.plot(x_sorted, y_test[idx], 'k-', lw=2, label='Ground Truth')
+        plt.plot(x_sorted, y_pred_pinn[idx], 'r--', lw=2, label='PINN')
+        
+        for name, y_ml in ml_preds.items():
+            plt.plot(x_sorted, y_ml[idx], ':', label=f'{name}')
+            
+        plt.legend()
+        plt.title("Comparação de Modelos")
+        plt.xlabel("x")
+        plt.ylabel("u")
+        
+    else:
+        # Plot 2D (Scatter Error)
+        # Mostra apenas o erro da PINN vs Truth para simplificar
+        plt.subplot(1, 2, 1)
+        plt.scatter(X_test[:,0], X_test[:,1], c=y_test, cmap='viridis', s=3)
+        plt.colorbar()
+        plt.title("Ground Truth")
+        
+        plt.subplot(1, 2, 2)
+        error = np.abs(y_test - y_pred_pinn.ravel())
+        plt.scatter(X_test[:,0], X_test[:,1], c=error, cmap='hot', s=3)
+        plt.colorbar()
+        plt.title("PINN Absolute Error")
+        
+    plt.tight_layout()
+    plt.savefig(output_plot)
+    plt.close()
+    print(f"✓ Gráfico genérico salvo em: {output_plot}")
 
 def _plot_spatial_comparison(problem, model_pinn, model_fem, regressors, metrics, cfg, save_dir=None):
     """
@@ -138,12 +188,11 @@ def _plot_spatial_comparison(problem, model_pinn, model_fem, regressors, metrics
     plt.suptitle(f"Comparação Espacial e Erros - {cfg['problem']}", fontsize=16)
     
     if save_dir:
-        import os
         save_path = os.path.join(save_dir, "comparison.png")
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
         print(f"✓ Gráfico salvo em: {save_path}")
         
-    plt.show()
+    # plt.show() # Não bloquear em headless
 
 def _plot_temporal_extrapolation(problem, model_pinn, regressors, metrics, cfg, save_dir=None):
     """
@@ -187,9 +236,6 @@ def _plot_temporal_extrapolation(problem, model_pinn, regressors, metrics, cfg, 
     plt.tight_layout()
     
     if save_dir:
-        import os
         save_path = os.path.join(save_dir, "extrapolation.png")
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
         print(f"✓ Gráfico salvo em: {save_path}")
-
-    plt.show()

@@ -30,7 +30,7 @@ source .venv/bin/activate
 
 2. Instale as dependências:
 ```bash
-pip install -r requirements.txt
+uv pip install -r requirements.txt
 ```
 
 ## 🛠️ Como Usar
@@ -41,7 +41,7 @@ Edite o arquivo `config.py` para selecionar o problema e ajustar parâmetros:
 ```python
 CONFIG = {
     "problem": "electrostatic_mesh", # ou "poisson_2d", "heat_1d", "wave_1d"
-    "mesh_file": "domain.msh",       # Para problemas com malha
+    "mesh_file": "meshes/files/stator.msh", # Caminho para o arquivo .msh
     "Lx": 1.0,                       # Domínio padrão (sobrescrito se usar malha)
     "use_mesh": False,               # True para carregar .msh, False para analítico
     ...
@@ -59,16 +59,27 @@ Isso irá:
 4. Treinar modelos de ML Clássico.
 5. Gerar métricas (`metrics.json`) e gráficos (`comparison.png`).
 
-### 3. Gerar Relatórios
-Para gerar um relatório consolidado em Markdown:
+### 3. Resultados (IMPORTANTE)
+Todos os resultados da última execução são salvos automaticamente em:
+👉 **`results/latest/`**
+
+Lá você encontrará:
+- `visualization.html`: Visualização interativa 3D (Abra este arquivo!).
+- `report.md`: Relatório completo.
+- `comparison.png`: Gráficos estáticos.
+- `metrics.json`: Métricas de erro.
+
+### 4. Gerar Relatórios (Opcional)
+Para gerar um relatório consolidado em Markdown (também vai para `results/latest`):
 ```bash
-python3 generate_report.py --problem electrostatic_mesh --run run_001
+python3 utils/generate_report.py
 ```
 
 ## 📊 Estrutura do Projeto
 
 - `main.py`: Script principal de orquestração.
 - `config.py`: Configurações globais.
+- `results/latest/`: **ONDE ESTÃO OS RESULTADOS FINAIS.**
 - `problems/`: Definições das EDPs e Geometrias.
 - `models/`: Implementações da PINN, FEM e Wrappers de ML.
 - `utils/`:
@@ -76,7 +87,18 @@ python3 generate_report.py --problem electrostatic_mesh --run run_001
   - `plots.py`: Visualização dos resultados.
   - `mesh_loader.py`: Carregamento robusto de arquivos `.msh`.
   - `checkpoint.py`: Gerenciamento de salvamento/carregamento de modelos.
-- `checkpoints/`: Onde os modelos, métricas e gráficos são salvos.
+  - `view_mesh.py`: Visualizador de malhas pré-treino.
+- `checkpoints/`: Histórico de execuções (Run 001, 002...).
+- `meshes/`:
+  - `files/`: Arquivos `.msh` (gerados pelo GMSH).
+  - `images/`: Visualizações `.png` (geradas pelo `utils/view_mesh.py`).
 
 ## 📝 Notas sobre Malhas (Mesh)
-Para problemas como `electrostatic_mesh`, o sistema ajusta automaticamente o domínio (`Lx`, `Ly`, `train_box`) com base nas dimensões reais do arquivo `.msh`. Certifique-se de que a flag `use_mesh` está ativada no problema (o `electrostatic_mesh.py` já faz isso por padrão).
+As malhas devem ser organizadas na pasta `meshes/`:
+- `meshes/files/`: Arquivos `.msh` (gerados pelo GMSH).
+- `meshes/images/`: Visualizações `.png` (geradas pelo `utils/view_mesh.py`).
+
+Para usar uma nova malha:
+1. Coloque o arquivo `.msh` em `meshes/files/`.
+2. Atualize `config.py` apontando para `meshes/files/seu_arquivo.msh`.
+3. Rode `python utils/view_mesh.py` para gerar a visualização em `meshes/images/`.

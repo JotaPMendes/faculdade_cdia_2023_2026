@@ -1,6 +1,7 @@
 import os
 import json
 import sys
+import shutil
 
 # Adicionar raiz ao path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -48,25 +49,26 @@ def generate_report():
             return "N/A"
     
     # Caminhos dos Artefatos
-    html_path = "interactive_comparison_v2.html"
+    html_path = "visualization.html" # Link relativo no results/latest
     png_path = "comparison.png"
-    mesh_path = os.path.abspath(CONFIG["mesh_file"])
+    mesh_name = os.path.basename(CONFIG["mesh_file"])
     
-    # Conteúdo do Relatório
-    report_content = f"""# Relatório Final: PINN vs FEM (L-Shape Singularity)
+    # Conteúdo do Relatório (Genérico)
+    title = f"Relatório Final: PINN vs FEM ({mesh_name})"
+    desc = f"Experimento simulando distribuição de potencial na malha `{mesh_name}`."
+
+    report_content = f"""# {title}
 
 ## 1. Visão Geral
-Este experimento comparou a performance de **Physics-Informed Neural Networks (PINN)** contra o **Método dos Elementos Finitos (FEM)** clássico na resolução da Equação de Laplace em um domínio em L com singularidade reentrante.
+{desc}
 
-**Objetivo Principal**: Demonstrar a capacidade da PINN de aprender uma solução contínua e suave ("Infinite Zoom") em contraste com a discretização do FEM.
+**Objetivo**: Comparar a solução contínua da PINN com a discreta do FEM.
 
-## 2. Configuração do Experimento
+## 2. Configuração
 - **Problema**: {CONFIG['problem']}
-- **Malha**: `{CONFIG['mesh_file']}` (L-Shape)
-- **Singularidade**: Canto reentrante em (0,0)
+- **Malha**: `{mesh_name}`
 - **Condições de Contorno**:
-    - Topo: 100V (Normalizado para 1.0 no treino)
-    - Outros: 0V
+{json.dumps(CONFIG.get('boundary_conditions', {}), indent=4)}
 
 ### Parâmetros da PINN
 - **Arquitetura**: FNN (Fully Connected)
@@ -85,24 +87,15 @@ Abaixo o Erro Médio Absoluto (MAE) comparado ao FEM (Ground Truth numérico):
 
 > **Nota**: O erro da PINN é esperado ser maior que zero pois ela aprende a física, não copia o FEM. O FEM tem erro de discretização que a PINN tenta superar (suavidade).
 
-## 4. Visualização Interativa (Prova de Conceito)
-A prova definitiva da superioridade da PINN em resolução está na visualização interativa.
-
+## 4. Visualização Interativa
 ### [>> ABRIR VISUALIZAÇÃO INTERATIVA <<]({html_path})
-*(Abra este arquivo no navegador para ver o Zoom Infinito)*
-
-**O que observar:**
-1.  **Aba "Zoom 1D"**: Compare a curva suave da PINN com os segmentos quebrados do FEM perto da singularidade.
-2.  **Aba "Comparação 2D"**: Alterne entre os mapas de calor para ver a diferença de textura.
+*(Baixe este arquivo para visualizar ou use um visualizador de HTML)*
 
 ## 5. Artefatos Gerados
 - **Relatório**: `report.md` (este arquivo)
 - **Visualização**: [`{html_path}`]({html_path})
 - **Gráfico Estático**: [`{png_path}`]({png_path})
-- **Malha Original**: `{mesh_path}`
-
-## 6. Conclusão
-A PINN demonstrou com sucesso a capacidade de representar a solução como uma função contínua e diferenciável, eliminando os artefatos de malha típicos do FEM em regiões de singularidade. Embora o FEM seja extremamente preciso nos nós, a PINN oferece uma representação superior ("Infinite Zoom") no interior do domínio.
+- **Malha Original**: `{mesh_name}`
 """
 
     report_file = os.path.join(run_dir, "report.md")
@@ -110,6 +103,12 @@ A PINN demonstrou com sucesso a capacidade de representar a solução como uma f
         f.write(report_content)
         
     print(f"✓ Relatório gerado em: {report_file}")
+    
+    # Copiar para results/latest
+    latest_dir = "results/latest"
+    os.makedirs(latest_dir, exist_ok=True)
+    shutil.copy(report_file, os.path.join(latest_dir, "report.md"))
+    print(f"✓ Relatório disponível em: results/latest/report.md")
 
 if __name__ == "__main__":
     generate_report()

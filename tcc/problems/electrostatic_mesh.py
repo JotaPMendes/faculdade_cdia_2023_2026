@@ -44,29 +44,13 @@ def create_electrostatic_mesh_problem(config):
         dy_yy = dde.grad.hessian(y, x, i=1, j=1)
         return -dy_xx - dy_yy
 
-    # 3. Condições de Contorno
-    # Mapear nomes físicos para valores de potencial
-    # Exemplo baseado no notebook do professor (MEF.ipynb):
-    # Top: 100V -> Normalizado para 1.0
-    # Outros: 0V
+    # 3. Condições de Contorno (Dinâmico via Config)
     bcs = []
     
     # Normalização: Trabalhar com [0, 1] e reescalar na visualização
-    V_MAX = 100.0
+    V_MAX = config.get("scaling_factor", 100.0)
     
-    bc_configs = {
-        "Top": 1.0, # Era 100.0
-        "Bottom": 0.0,
-        "Left": 0.0,
-        "Right": 0.0,
-        "Inner": 0.0
-    }
-    
-    # Para o solver FEM (Manter escala original ou normalizar? Vamos manter original no FEM e comparar normalizado)
-    # Ou melhor: Normalizar tudo para ser consistente.
-    # Se o FEM usar 100 e a PINN usar 1, a comparação falha.
-    # Vamos configurar o FEM para usar 100 (física real) e a PINN para usar 1 (numérico).
-    # Na hora de comparar/plotar, multiplicamos a PINN por 100.
+    bc_configs = config.get("boundary_conditions", {})
     
     fem_boundary_conditions = {}
 

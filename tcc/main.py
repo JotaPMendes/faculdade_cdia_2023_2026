@@ -1,249 +1,134 @@
-"""
-Script principal para treinar e comparar PINN vs ML Clássico.
-
-Este script:
-1. Carrega o problema configurado (Heat, Wave ou Poisson)
-2. Treina o modelo PINN
-3. Treina modelos de ML Clássico (RF, XGB, KNN)
-4. Compara os resultados
-5. Gera visualizações
-"""
-
+import os
+import json
+import torch
 import numpy as np
-from sklearn.metrics import mean_absolute_error
+import matplotlib.pyplot as plt
+import shutil
 
 from config import CONFIG
+from problems import get_problem
 from models.pinn import train_pinn
-from models.regressors import get_regressors
 from models.fem import PoissonFEM
-from utils.data import generate_data_for_ml
-from utils.plots import plot_results
+from models.ml_models import train_ml_models
+from utils.plots import plot_comparison
 from utils.checkpoint import CheckpointManager
-import json
-import os
-
-from problems.poisson2d import create_poisson_2d_problem
-from problems.heat import create_heat_problem
-from problems.wave import create_wave_problem
-from problems.electrostatic_mesh import create_electrostatic_mesh_problem
-from solver import ElectrostaticSolver
-
-def get_problem(config):
-    name = config["problem"]
-    if name == "poisson_2d":
-        return create_poisson_2d_problem(config)
-    elif name == "heat_1d":
-        return create_heat_problem(config)
-    elif name == "wave_1d":
-        return create_wave_problem(config)
-    elif name == "electrostatic_mesh":
-        return create_electrostatic_mesh_problem(config)
-    else:
-        raise ValueError(f"Problema desconhecido: {name}")
 
 def main():
-    print("=" * 70)
-    print("COMPARAÇÃO: PINN vs ML CLÁSSICO")
-    print("=" * 70)
-    print(f"\nProblema selecionado: {CONFIG['problem']}")
-    print(f"Configurações:")
-    for key, value in CONFIG.items():
-        print(f"  {key}: {value}")
-    
-    # =============================
-    # 1. CRIAR PROBLEMA
-    # =============================
-    print("\n" + "=" * 70)
-    print("ETAPA 1: Criando problema...")
-    print("=" * 70)
-    problem = get_problem(CONFIG)
-    print(f"✓ Problema criado: tipo='{problem['kind']}'")
-    print(f"✓ Componentes: data={type(problem['data']).__name__}, net={type(problem['net']).__name__}")
-    
-    # Instanciar Manager para obter diretório de salvamento
-    # max_keep=0 significa infinito/todos
-    max_keep = CONFIG.get("keep_checkpoints", 0)
-    ckpt_manager = CheckpointManager(max_keep=max_keep)
-    ckpt_dir = ckpt_manager.get_run_dir(CONFIG)
-    print(f"✓ Diretório de execução: {ckpt_dir}")
-    
-    # =============================
-    # 2. TREINAR PINN
-    # =============================
-    print("\n" + "=" * 70)
-    print("ETAPA 2: Treinando PINN...")
-    print("=" * 70)
-    model_pinn = train_pinn(problem, CONFIG)
-    print("✓ PINN treinado com sucesso!")
+    print("="*50)
+    print(f"INICIANDO EXPERIMENTO: {CONFIG['problem']}")
+    print("="*50)
 
-    # =============================
-    # 2.1. RESOLVER FEM (Reference)
-    # =============================
-    model_fem = None
-    if CONFIG["problem"] == "poisson_2d":
-        print("\n" + "=" * 70)
-        print("ETAPA 2.1: Resolvendo FEM (Baseline Numérico)...")
-        print("=" * 70)
-        model_fem = PoissonFEM(problem, Nx=50, Ny=50)
-        model_fem.solve()
-        print("✓ FEM resolvido com sucesso!")
-    elif CONFIG["problem"] == "electrostatic_mesh":
-        print("\n" + "=" * 70)
-        print("ETAPA 2.1: Resolvendo FEM (Electrostatic Solver)...")
-        print("=" * 70)
+    # 1. Configurar Dispositivo
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Device: {device}")
+
+    # 2. Carregar Problema
+    problem = get_problem(CONFIG)
+    
+    # 3. Gerenciador de Checkpoints
+    ckpt_manager = CheckpointManager()
+    run_dir = ckpt_manager.create_run_dir(CONFIG)
+    print(f"Diretório de saída: {run_dir}")
+
+    # 4. Treinar PINN
+    print("\n--- TREINANDO PINN ---")
+    model_pinn = train_pinn(problem, CONFIG)
+    
+    # 5. Resolver FEM (Ground Truth ou Comparação)
+    print("\n--- RESOLVENDO FEM ---")
+    fem_solver = None
+    u_fem = None
+    
+    if problem["kind"] == "electrostatic" and problem.get("use_mesh"):
+        from solver import ElectrostaticSolver
         fem_data = problem["fem_data"]
-        # Instantiate custom solver
-        solver = ElectrostaticSolver(
+        fem_solver = ElectrostaticSolver(
             fem_data["nodes"],
             fem_data["nodeTags"],
             fem_data["triElements"],
             fem_data["elements"],
             fem_data["boundaryConditions"]
         )
-        solver.assemble_global_matrix_and_vector()
-        solver.apply_boundary_conditions()
-        solver.solve()
-        
-        # Wrap solver to behave like model_fem (predict method)
-        class FEMWrapper:
-            def __init__(self, solver):
-                self.solver = solver
-                # Pre-calculate field for potential use
-                self.solver.calculate_electric_field()
-                
-            def predict(self, X):
-                # X is (N, 2). We need to interpolate potential at X.
-                # The custom solver doesn't have a built-in interpolator for arbitrary points easily accessible.
-                # For comparison, we can use scipy.interpolate.griddata or LinearNDInterpolator
-                from scipy.interpolate import LinearNDInterpolator
-                points = self.solver.nodes
-                values = self.solver.get_potential()
-                interp = LinearNDInterpolator(points, values, fill_value=0.0)
-                return interp(X)
+        fem_solver.assemble_global_matrix_and_vector()
+        fem_solver.apply_boundary_conditions()
+        fem_solver.solve()
+        u_fem = fem_solver.get_potential()
+        print("FEM resolvido com sucesso.")
+    elif problem["kind"] == "poisson_2d":
+        # Para Poisson analítico, usamos FEM clássico simples se implementado
+        # Mas aqui o foco é comparar com analítico u_true
+        pass
 
-        model_fem = FEMWrapper(solver)
-        print("✓ FEM (Electrostatic) resolvido com sucesso!")
+    # 6. Treinar Modelos ML Clássicos (RF, XGB)
+    print("\n--- TREINANDO ML CLÁSSICO ---")
+    # Gerar dados de treino/teste compatíveis
+    from utils.data import generate_data_for_ml
+    X_train, y_train, X_test, y_test = generate_data_for_ml(problem, CONFIG)
     
-    # =============================
-    # 3. GERAR DADOS PARA ML
-    # =============================
-    print("\n" + "=" * 70)
-    print("ETAPA 3: Gerando dados para ML Clássico...")
-    print("=" * 70)
-    # Pass model_fem to generate_data_for_ml to use as ground truth if u_true is missing
-    Xtr, ytr, Xte, yte = generate_data_for_ml(problem, CONFIG, model_fem)
-    print(f"✓ Dados de treino: X_train.shape = {Xtr.shape}, y_train.shape = {ytr.shape}")
-    print(f"✓ Dados de teste: X_test.shape = {Xte.shape}, y_test.shape = {yte.shape}")
+    ml_metrics, ml_preds = train_ml_models(X_train, y_train, X_test, y_test)
     
-    # =============================
-    # 4. TREINAR ML CLÁSSICO
-    # =============================
-    print("\n" + "=" * 70)
-    print("ETAPA 4: Treinando modelos de ML Clássico...")
-    print("=" * 70)
-    regressors = get_regressors()
-    trained_models = []
+    # 7. Avaliar PINN no Test Set
+    print("\n--- AVALIAÇÃO FINAL ---")
+    # Previsão PINN
+    y_pred_pinn = model_pinn.predict(X_test)
     
-    if len(Xte) == 0:
-        print("⚠️ Aviso: Conjunto de teste vazio. Pulando treinamento de ML Clássico.")
-    else:
-        for name, model in regressors:
-            print(f"\nTreinando {name}...")
-            model.fit(Xtr, ytr.ravel())
-            score_train = model.score(Xtr, ytr.ravel())
-            score_test = model.score(Xte, yte.ravel())
-            print(f"  R² (treino): {score_train:.4f}")
-            print(f"  R² (teste):  {score_test:.4f}")
-            trained_models.append((name, model))
+    # Métricas PINN
+    mae_pinn = np.mean(np.abs(y_pred_pinn - y_test))
+    
+    metrics = {
+        "PINN": mae_pinn,
+        **ml_metrics
+    }
+    
+    print("\nRESULTADOS (MAE):")
+    for k, v in metrics.items():
+        print(f"{k}: {v:.6f}")
         
-        print("\n✓ Todos os modelos ML treinados!")
+    # 8. Plotar Comparação
+    print("\n--- GERANDO GRÁFICOS ---")
+    output_plot = os.path.join(run_dir, "comparison.png")
     
-    # =============================
-    # 5. AVALIAR NO CONJUNTO DE TESTE
-    # =============================
-    print("\n" + "=" * 70)
-    print("ETAPA 5: Avaliando modelos no conjunto de teste...")
-    print("=" * 70)
+    # Ajustar dados para plotagem
+    # Se for mesh, precisamos de lógica específica ou usar o visualizer.py
+    # O plot_comparison atual é genérico para scatter/line
+    if CONFIG.get("use_mesh"):
+        # Para mesh, o visualizer.py é melhor, mas vamos gerar um scatter simples aqui
+        plt.figure(figsize=(10, 5))
+        plt.subplot(1, 2, 1)
+        plt.scatter(X_test[:, 0], X_test[:, 1], c=y_pred_pinn.ravel(), cmap='viridis', s=1)
+        plt.title("PINN Prediction")
+        plt.colorbar()
+        
+        plt.subplot(1, 2, 2)
+        plt.scatter(X_test[:, 0], X_test[:, 1], c=np.abs(y_pred_pinn - y_test).ravel(), cmap='hot', s=1)
+        plt.title("Absolute Error")
+        plt.colorbar()
+        plt.savefig(output_plot)
+    else:
+        plot_comparison(X_test, y_test, y_pred_pinn, ml_preds, output_plot)
     
-    results_metrics = {}
-    
-    # Avaliar PINN
-    if len(Xte) > 0:
-        print("\nAvaliando PINN...")
-        y_pred_pinn = model_pinn.predict(Xte)
-        mae_pinn = mean_absolute_error(yte, y_pred_pinn)
-        results_metrics["PINN"] = mae_pinn
-        print(f"  MAE (PINN): {mae_pinn:.6f}")
+    print(f"✓ Gráfico salvo em: {output_plot}")
 
-        # Avaliar FEM
-        if model_fem:
-            print("\nAvaliando FEM...")
-            y_pred_fem = model_fem.predict(Xte)
-            # Handle NaNs from interpolation (outside mesh)
-            mask = ~np.isnan(y_pred_fem)
-            if not np.all(mask):
-                print(f"  ⚠️ Aviso: {np.sum(~mask)} pontos fora da malha FEM ignorados na avaliação.")
-                y_pred_fem = y_pred_fem[mask]
-                yte_fem = yte[mask]
-            else:
-                yte_fem = yte
-                
-            mae_fem = mean_absolute_error(yte_fem, y_pred_fem)
-            results_metrics["FEM"] = mae_fem
-            print(f"  MAE (FEM):  {mae_fem:.6f}")
-        
-        # Avaliar ML Clássico
-        for name, model in trained_models:
-            y_pred = model.predict(Xte)
-            mae = mean_absolute_error(yte, y_pred)
-            results_metrics[name] = mae
-            print(f"  MAE ({name}):  {mae:.6f}")
-        
-        # =============================
-        # 6. RESULTADOS FINAIS
-        # =============================
-        print("\n" + "=" * 70)
-        print("RESULTADOS FINAIS - MAE (Mean Absolute Error)")
-        print("=" * 70)
-        
-        # Ordenar por MAE (menor é melhor)
-        sorted_results = sorted(results_metrics.items(), key=lambda x: x[1])
-        
-        print("\nRanking (menor MAE é melhor):")
-        for i, (name, mae) in enumerate(sorted_results, 1):
-            symbol = "🏆" if i == 1 else "  "
-            print(f"{symbol} {i}. {name:10s} - MAE: {mae:.6f}")
-        
-        best_model = sorted_results[0][0]
-        print(f"\n✓ Melhor modelo: {best_model}")
-        
-        # Salvar métricas em JSON
-        metrics_path = os.path.join(ckpt_dir, "metrics.json")
-        with open(metrics_path, "w") as f:
-            json.dump(results_metrics, f, indent=2)
-        print(f"✓ Métricas salvas em: {metrics_path}")
-    else:
-        print("⚠️ Sem dados de teste para avaliar.")
+    # Salvar métricas
+    metrics_path = os.path.join(run_dir, "metrics.json")
+    with open(metrics_path, "w") as f:
+        json.dump(metrics, f, indent=4)
+    print(f"✓ Métricas salvas em: {metrics_path}")
     
-    # =============================
-    # 7. GERAR VISUALIZAÇÕES
-    # =============================
-    print("\n" + "=" * 70)
-    print("ETAPA 6: Gerando visualizações...")
-    print("=" * 70)
+    # --- COPIAR PARA RESULTS/LATEST ---
+    latest_dir = "results/latest"
+    os.makedirs(latest_dir, exist_ok=True)
     
     try:
-        plot_results(problem, model_pinn, model_fem, trained_models, results_metrics, CONFIG, save_dir=ckpt_dir)
-        print("✓ Gráficos salvos com sucesso!")
+        shutil.copy(output_plot, os.path.join(latest_dir, "comparison.png"))
+        shutil.copy(metrics_path, os.path.join(latest_dir, "metrics.json"))
+        print(f"✓ Resultados copiados para: {latest_dir}")
     except Exception as e:
-        print(f"⚠ Erro ao gerar gráficos: {e}")
-        import traceback
-        traceback.print_exc()
-    
-    print("\n" + "=" * 70)
-    print("EXECUÇÃO CONCLUÍDA!")
-    print("=" * 70)
+        print(f"⚠ Erro ao copiar para latest: {e}")
 
+    print("="*50)
+    print("FIM DO TREINAMENTO")
+    print("="*50)
 
 if __name__ == "__main__":
     main()

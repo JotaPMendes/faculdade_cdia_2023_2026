@@ -5,6 +5,7 @@ import meshio
 import os
 import sys
 from scipy.interpolate import griddata
+import shutil
 
 # Adicionar raiz ao path para imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -58,156 +59,188 @@ def generate_interactive_plot(run_dir=None):
     solver.solve()
     fem_potential = solver.get_potential() # Valores nos nós
     
-    # 4. Preparar Dados para Plotagem 2D (Heatmap)
-    print("Gerando grid de alta resolução...")
-    xmin, ymin, xmax, ymax = CONFIG["train_box"]
-    N_grid = 400 # Resolução do grid
-    gx = np.linspace(xmin, xmax, N_grid)
-    gy = np.linspace(ymin, ymax, N_grid)
-    GX, GY = np.meshgrid(gx, gy)
-    Grid_points = np.stack([GX.ravel(), GY.ravel()], axis=1)
-    
-    # Máscara L-Shape
-    mask_valid = ~((Grid_points[:,0] > 0) & (Grid_points[:,1] > 0))
-    valid_points = Grid_points[mask_valid]
+    # 4. Preparar Dados para Plotagem (Geometry-Aware)
+    print("Preparando plotagem baseada na malha (Geometry-Aware)...")
     
     # Fator de escala
     scale = problem.get("scaling_factor", 1.0)
     
-    # A) PINN 2D
-    U_pinn_flat = np.nan * np.ones(len(Grid_points))
-    if len(valid_points) > 0:
-        U_pinn_valid = model_pinn.predict(valid_points).ravel()
-        U_pinn_flat[mask_valid] = U_pinn_valid * scale
-    U_pinn_grid = U_pinn_flat.reshape(N_grid, N_grid)
+    # A) PINN nos Nós
+    U_pinn = model_pinn.predict(points).ravel() * scale
     
-    # B) FEM 2D (Interpolação Linear)
-    print("Interpolando FEM para grid...")
-    # points: (N_nodes, 2), fem_potential: (N_nodes,)
-    # Grid_points: (N_grid*N_grid, 2)
-    U_fem_flat = griddata(points, fem_potential, Grid_points, method='linear')
-    # Aplicar máscara (griddata pode extrapolar ou dar nan fora do convex hull, mas L-shape é concavo)
-    # Vamos forçar nan onde é inválido geometricamente
-    U_fem_flat[~mask_valid] = np.nan
-    U_fem_grid = U_fem_flat.reshape(N_grid, N_grid)
+    # B) FEM nos Nós
+    U_fem = fem_potential * 1.0 
+    
+    # C) Erro Absoluto
+    U_error = np.abs(U_pinn - U_fem)
+    
+    # Preparar Triângulos para Plotly (i, j, k)
+    if triangles is None:
+        print("⚠ Aviso: Malha sem triângulos. Usando Scatter plot.")
+        use_mesh_plot = False
+    else:
+        use_mesh_plot = True
+        tri_i = triangles[:, 0]
+        tri_j = triangles[:, 1]
+        tri_k = triangles[:, 2]
 
-    # 5. Preparar Dados para Slice 1D (Zoom Infinito)
+    # 5. Preparar Dados para Slice 1D
     print("Gerando Slice 1D...")
-    # Diagonal aproximando a singularidade: (-0.5, -0.5) -> (0, 0)
-    # Vamos passar um pouco do zero para ver o comportamento
-    p_start = np.array([-0.5, -0.5])
-    p_end = np.array([0.0, 0.0]) # Singularidade exata
+    
+    slice_cfg = CONFIG.get("slice_config", {
+        "type": "linear",
+        "p_start": [-0.5, -0.5],
+        "p_end": [0.0, 0.0],
+        "xlabel": "Posição"
+    })
+    
+    p_start = np.array(slice_cfg["p_start"])
+    p_end = np.array(slice_cfg["p_end"])
+    xlabel = slice_cfg.get("xlabel", "Posição")
     
     N_slice = 200
     t = np.linspace(0, 1, N_slice)
     slice_points = p_start + np.outer(t, (p_end - p_start))
     
-    # Distância da origem (para eixo X do plot)
-    dist = np.linalg.norm(slice_points, axis=1)
-    # Inverter para que 0 seja a singularidade? Ou manter distância da origem?
-    # Vamos usar coordenada x (já que é diagonal y=x)
-    slice_x = slice_points[:, 0]
+    if slice_cfg.get("type") == "radial":
+        slice_x = np.linalg.norm(slice_points, axis=1)
+    else:
+        slice_x = np.linalg.norm(slice_points - p_start, axis=1)
     
-    # PINN Slice
     slice_pinn = model_pinn.predict(slice_points).ravel() * scale
-    
-    # FEM Slice (Interpolação)
     slice_fem = griddata(points, fem_potential, slice_points, method='linear')
 
     # --- PLOTLY SUBPLOTS ---
     fig = make_subplots(
         rows=1, cols=2,
         column_widths=[0.6, 0.4],
-        subplot_titles=("Comparação 2D: PINN (Esquerda) vs FEM (Direita)", "Zoom 1D: Suavidade vs Discretização"),
-        specs=[[{"type": "contour"}, {"type": "xy"}]]
+        subplot_titles=("Mapa 2D (Geometria Exata)", "Slice 1D (Detalhe)"),
+        specs=[[{"type": "scene"}, {"type": "xy"}]]
     )
 
-    # 1. Heatmap Combinado (Truque: Usar botões para alternar ou sobrepor?)
-    # Vamos fazer algo melhor: Botões para trocar o Heatmap 2D
-    # Por padrão mostramos PINN.
-    
-    # Trace 0: PINN 2D
-    fig.add_trace(go.Contour(
-        z=U_pinn_grid, x=gx, y=gy,
-        colorscale='Viridis',
-        contours=dict(start=0, end=100, size=2, showlines=False),
-        colorbar=dict(title="V (PINN)", x=0.55, len=0.5, y=0.8),
-        name='PINN 2D',
-        visible=True
-    ), row=1, col=1)
-    
-    # Trace 1: FEM 2D (Inicialmente oculto)
-    fig.add_trace(go.Contour(
-        z=U_fem_grid, x=gx, y=gy,
-        colorscale='Viridis',
-        contours=dict(start=0, end=100, size=2, showlines=False),
-        colorbar=dict(title="V (FEM)", x=0.55, len=0.5, y=0.2),
-        name='FEM 2D',
-        visible=False
-    ), row=1, col=1)
+    def create_mesh_trace(values, name, visible, colorscale='Viridis'):
+        if use_mesh_plot:
+            return go.Mesh3d(
+                x=points[:, 0],
+                y=points[:, 1],
+                z=np.zeros_like(points[:, 0]),
+                i=tri_i,
+                j=tri_j,
+                k=tri_k,
+                intensity=values,
+                colorscale=colorscale,
+                colorbar=dict(title=name, x=0.45),
+                name=name,
+                visible=visible,
+                flatshading=True
+            )
+        else:
+            return go.Scatter(
+                x=points[:, 0],
+                y=points[:, 1],
+                mode='markers',
+                marker=dict(
+                    size=4,
+                    color=values,
+                    colorscale=colorscale,
+                    colorbar=dict(title=name, x=0.45)
+                ),
+                name=name,
+                visible=visible
+            )
 
-    # Trace 2: Slice PINN
+    fig.add_trace(create_mesh_trace(U_pinn, "V (PINN)", True), row=1, col=1)
+    fig.add_trace(create_mesh_trace(U_fem, "V (FEM)", False), row=1, col=1)
+    fig.add_trace(create_mesh_trace(U_error, "Erro Abs", False, colorscale='Hot'), row=1, col=1)
+
     fig.add_trace(go.Scatter(
         x=slice_x, y=slice_pinn,
         mode='lines',
-        name='PINN (Contínuo)',
+        name='PINN (Slice)',
         line=dict(color='cyan', width=3)
     ), row=1, col=2)
     
-    # Trace 3: Slice FEM
     fig.add_trace(go.Scatter(
         x=slice_x, y=slice_fem,
         mode='lines+markers',
-        name='FEM (Discreto)',
+        name='FEM (Slice)',
         line=dict(color='orange', width=1, dash='dot'),
         marker=dict(size=4)
     ), row=1, col=2)
 
     # Layout e Menus
     fig.update_layout(
-        title="Prova de Conceito: Infinite Zoom (PINN) vs Discretização (FEM)",
+        title=dict(
+            text=f"Análise Geométrica: {os.path.basename(CONFIG['mesh_file'])}",
+            y=0.98,
+            x=0.5,
+            xanchor='center',
+            yanchor='top',
+            font=dict(size=20)
+        ),
         template="plotly_dark",
-        height=700,
+        height=800,
+        margin=dict(t=120, b=50, l=50, r=50), # Mais espaço no topo
+        scene=dict(
+            xaxis=dict(title='X'),
+            yaxis=dict(title='Y'),
+            zaxis=dict(title='', showticklabels=False, range=[-1, 1]),
+            camera=dict(eye=dict(x=0, y=0, z=2.2)),
+            aspectmode='data' # Manter proporção correta
+        ),
         updatemenus=[
             dict(
                 type="buttons",
                 direction="left",
                 buttons=list([
                     dict(
-                        args=[{"visible": [True, False, True, True]}],
-                        label="Ver PINN 2D",
+                        args=[{"visible": [True, False, False, True, True]}],
+                        label="PINN",
                         method="update"
                     ),
                     dict(
-                        args=[{"visible": [False, True, True, True]}],
-                        label="Ver FEM 2D",
+                        args=[{"visible": [False, True, False, True, True]}],
+                        label="FEM",
+                        method="update"
+                    ),
+                    dict(
+                        args=[{"visible": [False, False, True, True, True]}],
+                        label="ERRO",
                         method="update"
                     )
                 ]),
                 pad={"r": 10, "t": 10},
                 showactive=True,
-                x=0.05,
+                x=0.0,
                 xanchor="left",
-                y=1.15,
-                yanchor="top"
+                y=1.15, # Na margem superior, à esquerda
+                yanchor="top",
+                bgcolor="rgba(0,0,0,0.5)",
+                font=dict(color="white")
             ),
-        ]
+        ],
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
     )
     
-    # Anotações
-    fig.add_annotation(
-        x=0, y=0, xref="x1", yref="y1",
-        text="Singularidade (0,0)", showarrow=True, arrowhead=1, ax=40, ay=-40
-    )
-    
-    fig.update_xaxes(title_text="X", row=1, col=1)
-    fig.update_yaxes(title_text="Y", row=1, col=1)
-    fig.update_xaxes(title_text="Posição X (Diagonal)", row=1, col=2)
+    fig.update_xaxes(title_text=xlabel, row=1, col=2)
     fig.update_yaxes(title_text="Potencial (V)", row=1, col=2)
 
     output_file = os.path.join(run_dir, "interactive_comparison_v2.html")
     fig.write_html(output_file)
     print(f"✓ Visualização salva em: {output_file}")
+    
+    # Copiar para results/latest
+    latest_dir = "results/latest"
+    os.makedirs(latest_dir, exist_ok=True)
+    latest_file = os.path.join(latest_dir, "visualization.html")
+    shutil.copy(output_file, latest_file)
+    print(f"✓ Visualização disponível em: {latest_file}")
 
 if __name__ == "__main__":
     generate_interactive_plot()
