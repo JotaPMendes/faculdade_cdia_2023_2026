@@ -98,3 +98,38 @@ class MeshLoader:
     def get_all_points(self):
         """Returns (N, 2) array of ALL nodes."""
         return self.points[:, :2]
+
+def load_mesh_data(filename):
+    """
+    Legacy wrapper to maintain compatibility with existing code.
+    Returns: nodes, nodeTags, triElements, elements, boundaryConditions
+    """
+    loader = MeshLoader(filename)
+    
+    # Nodes (N, 3)
+    nodes = loader.points
+    
+    # NodeTags (just indices 1-based for compatibility if needed, or 0-based)
+    nodeTags = np.arange(len(nodes))
+    
+    # Elements and TriElements
+    mesh = meshio.read(loader.filename)
+    
+    # Extract triangles
+    triElements = []
+    if 'triangle' in mesh.cells_dict:
+        triElements = mesh.cells_dict['triangle']
+    
+    # Elements (all cells)
+    elements = mesh.cells
+    
+    # Boundary Conditions
+    boundaryConditions = {}
+    for name, node_indices in loader.boundary_nodes.items():
+        boundaryConditions[name] = {
+            "type": "dirichlet", # Default, can be changed in config
+            "value": 0.0,
+            "nodes": list(node_indices)
+        }
+        
+    return nodes, nodeTags, triElements, elements, boundaryConditions

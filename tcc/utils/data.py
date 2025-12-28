@@ -23,6 +23,7 @@ def generate_data_for_ml(problem, cfg, model_fem=None):
         
         bx0, by0, bx1, by1 = cfg["train_box"]
         N = cfg["N_data"]
+        print(f"DEBUG: generate_data_for_ml use_mesh=True, N={N}, box={cfg['train_box']}", flush=True)
         
         # Treino: Pontos aleatórios dentro do box
         Xtr = np.random.rand(N, 2)
