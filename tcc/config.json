@@ -1,0 +1,28 @@
+{
+    "problem": "electrostatic_mesh",
+    "mesh_file": "meshes/files/plate_holes.msh",
+    "N_data": 15000,
+    "N_test": 2500,
+    "keep_checkpoints": 3,
+    "use_mesh": true,
+    "boundary_conditions": {
+        "Left": 0.0,
+        "Right": 0.0,
+        "Top": 1.0,
+        "Bottom": 0.0,
+        "Holes": 0.0
+    },
+    "scaling_factor": 100.0,
+    "slice_config": {
+        "type": "linear",
+        "p_start": [
+            0.0,
+            0.5
+        ],
+        "p_end": [
+            1.0,
+            0.5
+        ],
+        "xlabel": "Posi\u00e7\u00e3o X"
+    }
+}
