@@ -1,8 +1,12 @@
 deepxde
 tensorflow
+scipy
 numpy
 scikit-learn
 matplotlib
 meshio
 plotly
 torch
+uv
+streamlit
+watchdog
