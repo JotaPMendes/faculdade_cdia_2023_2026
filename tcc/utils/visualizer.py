@@ -11,28 +11,31 @@ import shutil
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import CONFIG
-from main import get_problem
-from models.pinn import train_pinn
-from models.fem import PoissonFEM
+from problems import get_problem
+from models.pinn import PINN
 from solver import ElectrostaticSolver
 from utils.checkpoint import CheckpointManager
 
-def generate_interactive_plot(run_dir=None):
+def generate_interactive_plot(run_dir=None, config=None, pinn_instance=None):
     print("="*50)
     print("GERADOR DE VISUALIZAÇÃO INTERATIVA (PLOTLY)")
     print("="*50)
 
+    # 0. Usar config fornecida ou global
+    if config is None:
+        config = CONFIG
+
     # 1. Carregar Configuração e Problema
-    problem = get_problem(CONFIG)
+    problem = get_problem(config)
     
     # Se run_dir não for especificado, descobrir via CheckpointManager
     if run_dir is None:
         ckpt_manager = CheckpointManager()
-        run_dir = ckpt_manager.get_run_dir(CONFIG)
+        run_dir = ckpt_manager.get_run_dir(config)
         print(f"✓ Diretório detectado automaticamente: {run_dir}")
     
     # 2. Carregar Malha (FEM)
-    mesh_file = CONFIG["mesh_file"]
+    mesh_file = config["mesh_file"]
     mesh = meshio.read(mesh_file)
     points = mesh.points[:, :2]
     triangles = mesh.cells_dict.get("triangle")
@@ -41,8 +44,14 @@ def generate_interactive_plot(run_dir=None):
 
     # 3. Carregar Modelos
     # PINN
-    print("Carregando PINN...")
-    model_pinn = train_pinn(problem, CONFIG) 
+    if pinn_instance is not None:
+        print("Usando instância PINN fornecida...")
+        model_pinn = pinn_instance
+    else:
+        print("Carregando nova instância PINN...")
+        pinn = PINN(config, problem)
+        pinn.train() # Restores weights if available
+        model_pinn = pinn
     
     # FEM
     print("Resolvendo FEM (para comparação)...")
@@ -87,7 +96,7 @@ def generate_interactive_plot(run_dir=None):
     # 5. Preparar Dados para Slice 1D
     print("Gerando Slice 1D...")
     
-    slice_cfg = CONFIG.get("slice_config", {
+    slice_cfg = config.get("slice_config", {
         "type": "linear",
         "p_start": [-0.5, -0.5],
         "p_end": [0.0, 0.0],
@@ -171,7 +180,7 @@ def generate_interactive_plot(run_dir=None):
     # Layout e Menus
     fig.update_layout(
         title=dict(
-            text=f"Análise Geométrica: {os.path.basename(CONFIG['mesh_file'])}",
+            text=f"Análise Geométrica: {os.path.basename(config['mesh_file'])}",
             y=0.98,
             x=0.5,
             xanchor='center',
@@ -236,7 +245,7 @@ def generate_interactive_plot(run_dir=None):
     print(f"✓ Visualização salva em: {output_file}")
     
     # Copiar para results/latest
-    latest_dir = "results/latest"
+    latest_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "results", "latest")
     os.makedirs(latest_dir, exist_ok=True)
     latest_file = os.path.join(latest_dir, "visualization.html")
     shutil.copy(output_file, latest_file)
