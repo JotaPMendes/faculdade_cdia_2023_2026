@@ -104,10 +104,11 @@ def generate_data_for_ml(problem, cfg, model_fem=None):
         ytr = u_true(Xtr)
 
         # Teste: Extrapolação Temporal (T_train < t < T_eval)
+        T_eval = cfg.get("T_eval", cfg["T_train"] * 1.5)
         Nte = N // 2
         Xte = np.random.rand(Nte, 2)
         Xte[:,0] *= cfg["Lx"]
-        Xte[:,1] = cfg["T_train"] + np.random.rand(Nte)*(cfg["T_eval"] - cfg["T_train"])
+        Xte[:,1] = cfg["T_train"] + np.random.rand(Nte)*(T_eval - cfg["T_train"])
         yte = u_true(Xte)
         
         return Xtr, ytr, Xte, yte

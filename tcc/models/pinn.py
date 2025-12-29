@@ -19,9 +19,7 @@ class PINN:
         # DeepXDE organiza losses como [PDE, BC1, BC2, ..., IC]
         loss_weights = [1.0] # PDE
         if self.data.bcs:
-            loss_weights += [100.0] * len(self.data.bcs) # BCs
-        if hasattr(self.data, "num_initial") and self.data.num_initial > 0:
-             loss_weights += [100.0] # IC (se houver)
+            loss_weights += [100.0] * len(self.data.bcs) # BCs (inclui IC se passado em bcs)
 
         # Otimizador Adam
         self.model.compile("adam", lr=1e-3, loss_weights=loss_weights)

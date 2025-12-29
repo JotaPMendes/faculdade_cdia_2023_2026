@@ -125,10 +125,19 @@ def main():
         y_true = u_fem
     else:
         # Testar em grid regular
-        x = np.linspace(0, CONFIG["Lx"], 100)
-        y = np.linspace(0, CONFIG["Ly"], 100)
-        X, Y = np.meshgrid(x, y)
-        X_eval = np.stack([X.flatten(), Y.flatten()], axis=1)
+        if CONFIG["problem"] in ["heat_1d", "wave_1d"]:
+            # 1D Problem (x, t)
+            x = np.linspace(0, CONFIG["Lx"], 100)
+            t = np.linspace(0, CONFIG["T_train"], 100)
+            X, T = np.meshgrid(x, t)
+            X_eval = np.stack([X.flatten(), T.flatten()], axis=1)
+        else:
+            # 2D Problem (x, y)
+            x = np.linspace(0, CONFIG["Lx"], 100)
+            y = np.linspace(0, CONFIG.get("Ly", 1.0), 100) # Default Ly=1.0 if missing
+            X, Y = np.meshgrid(x, y)
+            X_eval = np.stack([X.flatten(), Y.flatten()], axis=1)
+            
         if problem.get("u_true"):
             y_true = problem["u_true"](X_eval)
         else:
