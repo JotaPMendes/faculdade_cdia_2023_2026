@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
-import { Trash2, ExternalLink, Activity, Clock, FileText, ChevronRight } from 'lucide-react'
+import { Trash2, Activity, Clock, FileText } from 'lucide-react'
 import { cn } from '../utils/cn'
 
 export default function ResultsView() {
