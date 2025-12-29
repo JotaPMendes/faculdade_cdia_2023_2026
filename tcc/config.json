@@ -1,11 +1,16 @@
 {
     "problem": "electrostatic_mesh",
-    "mesh_file": "meshes/files/stator.msh",
+    "mesh_file": "meshes/files/plate_holes.msh",
     "N_data": 15000,
     "N_test": 2000,
     "keep_checkpoints": 3,
     "use_mesh": true,
     "boundary_conditions": {
+        "Left": 0.0,
+        "Right": 0.0,
+        "Top": 1.0,
+        "Bottom": 0.0,
+        "Holes": 0.0,
         "Inner": 0.0,
         "Outer": 1.0
     },
