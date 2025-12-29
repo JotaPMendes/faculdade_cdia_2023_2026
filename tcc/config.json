@@ -1,8 +1,8 @@
 {
-    "problem": "electrostatic_mesh",
-    "mesh_file": "meshes/files/plate_holes.msh",
+    "problem": "heat_1d",
+    "mesh_file": "meshes/files/lshape.msh",
     "N_data": 15000,
-    "N_test": 2500,
+    "N_test": 2000,
     "keep_checkpoints": 3,
     "use_mesh": true,
     "boundary_conditions": {
