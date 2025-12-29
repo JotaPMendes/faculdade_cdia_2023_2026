@@ -21,6 +21,12 @@ class PINN:
         if self.data.bcs:
             loss_weights += [100.0] * len(self.data.bcs) # BCs (inclui IC se passado em bcs)
 
+        # Pesos de Loss (Estático ou Adaptativo)
+        adaptive_loss = pinn_cfg.get("adaptive_loss", False)
+        if adaptive_loss:
+            print(">>> Usando Pesos Adaptativos (NTK)...")
+            loss_weights = "NTK"
+        
         # Otimizador Adam
         self.model.compile("adam", lr=1e-3, loss_weights=loss_weights)
         
@@ -63,8 +69,13 @@ class PINN:
                 latest_step = max(steps)
                 restore_path = os.path.join(ckpt_dir, f"model.ckpt-{latest_step}.ckpt")
                 print(f">>> Checkpoint encontrado: {restore_path} (Step {latest_step})")
-                self.model.restore(restore_path)
-                self.model.train_state.step = latest_step
+                try:
+                    self.model.restore(restore_path)
+                    self.model.train_state.step = latest_step
+                except Exception as e:
+                    print(f"⚠️ Falha ao restaurar checkpoint (provável mudança de arquitetura): {e}")
+                    print(">>> Iniciando treinamento do zero...")
+                    latest_step = 0
         
         # Treinamento Adam
         total_adam_iters = pinn_cfg.get("train_steps_adam", self.config.get("train_steps_adam", 15000))
@@ -72,8 +83,28 @@ class PINN:
         
         if remaining_iters > 0:
             print(f">>> Iniciando treinamento ADAM por {remaining_iters} iterações (Total: {total_adam_iters})...")
-            resampler = dde.callbacks.PDEPointResampler(period=1000)
-            self.history = self.model.train(iterations=remaining_iters, callbacks=[resampler, checker, cleanup_cb, early_stopping], display_every=500)
+        if remaining_iters > 0:
+            print(f">>> Iniciando treinamento ADAM por {remaining_iters} iterações (Total: {total_adam_iters})...")
+            
+            # RAR (Residual-based Adaptive Refinement)
+            rar_iters = pinn_cfg.get("rar_iters", 0)
+            callbacks = [checker, cleanup_cb, early_stopping]
+            
+            if rar_iters > 0:
+                print(f">>> RAR Ativado: Adicionando pontos a cada {rar_iters} iterações.")
+                # RAR não é compatível com PDEPointResampler (ambos mudam pontos)
+                # DeepXDE faz RAR via argumento 'discretization' ou loop manual.
+                # Aqui vamos usar o loop de treino padrão mas sem o Resampler se RAR for usado.
+            else:
+                # Se não usar RAR, usamos o Resampler padrão para evitar overfitting em pontos fixos
+                resampler = dde.callbacks.PDEPointResampler(period=1000)
+                callbacks.append(resampler)
+
+            self.history = self.model.train(
+                iterations=remaining_iters, 
+                callbacks=callbacks, 
+                display_every=500
+            )
         else:
             print(f">>> Treinamento ADAM já concluído (Step {latest_step} >= {total_adam_iters}). Pulando...")
             # Create a dummy history object if skipped, or just return None/empty

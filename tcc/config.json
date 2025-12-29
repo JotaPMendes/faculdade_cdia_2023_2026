@@ -1,16 +1,13 @@
 {
-    "problem": "wave_1d",
-    "mesh_file": "meshes/files/lshape.msh",
+    "problem": "electrostatic_mesh",
+    "mesh_file": "meshes/files/stator.msh",
     "N_data": 15000,
     "N_test": 2000,
     "keep_checkpoints": 3,
     "use_mesh": true,
     "boundary_conditions": {
-        "Left": 0.0,
-        "Right": 0.0,
-        "Top": 1.0,
-        "Bottom": 0.0,
-        "Holes": 0.0
+        "Inner": 0.0,
+        "Outer": 1.0
     },
     "scaling_factor": 100.0,
     "slice_config": {
@@ -26,9 +23,37 @@
         "xlabel": "Posi\u00e7\u00e3o X"
     },
     "alpha": 0.01,
-    "Lx": 4.0,
+    "Lx": 2.0,
     "T_train": 16.0,
     "c": 1.0,
-    "Nx_train": 50,
-    "Ny_train": 50
+    "Nx_train": 100,
+    "Ny_train": 100,
+    "train_box": [
+        0.0,
+        0.0,
+        2.0,
+        2.0
+    ],
+    "Ly": 2.0,
+    "pinn_config": {
+        "arch_type": "MsFFN",
+        "layers": [
+            2,
+            50,
+            50,
+            50,
+            50,
+            1
+        ],
+        "activation": "tanh",
+        "initializer": "Glorot normal",
+        "train_steps_adam": 20000,
+        "train_steps_lbfgs": 10000,
+        "adaptive_loss": true,
+        "rar_iters": 0,
+        "sigmas": [
+            1,
+            10
+        ]
+    }
 }

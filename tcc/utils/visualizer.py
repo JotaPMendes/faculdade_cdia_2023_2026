@@ -257,6 +257,11 @@ def plot_mesh(run_dir, config, pinn_instance, problem):
     U_fem = np.abs(fem_potential) * 1.0 # Ensure magnitude
     U_error = np.abs(U_pinn - U_fem)
     
+    # DEBUG STATS
+    print(f"DEBUG: U_pinn range: [{U_pinn.min():.2e}, {U_pinn.max():.2e}]")
+    print(f"DEBUG: U_fem range: [{U_fem.min():.2e}, {U_fem.max():.2e}]")
+    print(f"DEBUG: U_error range: [{U_error.min():.2e}, {U_error.max():.2e}]")
+    
     # Métricas Globais
     mae = np.mean(U_error)
     l2 = np.linalg.norm(U_error) / np.linalg.norm(U_fem)
@@ -411,14 +416,20 @@ def plot_mesh(run_dir, config, pinn_instance, problem):
         plot_bgcolor="#1e1e1e",
         height=850,
         margin=dict(t=100, b=50, l=50, r=50),
-        legend=dict(x=0.55, y=1.02, orientation="h"),
+        legend=dict(
+            x=0.55, 
+            y=1.02, 
+            orientation="h",
+            xanchor="center",
+            entrywidth=70  # Force spacing
+        ),
         
         scene=dict(
             xaxis=dict(title='X (m)', showgrid=True, zeroline=False),
             yaxis=dict(title='Y (m)', showgrid=True, zeroline=False),
             zaxis=dict(title='', showticklabels=False, range=[-1, 1], showgrid=True),
             camera=dict(
-                eye=dict(x=1.5, y=1.5, z=1.5),
+                eye=dict(x=5, y=5, z=5), # Zoom out (was 1.5)
                 up=dict(x=0, y=0, z=1)
             ),
             aspectmode='data',

@@ -169,7 +169,20 @@ class Solver:
         vector_reduced = self.globalVector[self.freeNodes] - self.globalMatrix[self.freeNodes][:, self.fixedNodes] @ self.fixedValues[self.fixedNodes]
 
         # Solve for potentials at free nodes
+        print(f"DEBUG: Solver - Num Nodes: {self.numNodes}")
+        print(f"DEBUG: Solver - Fixed Nodes: {len(self.fixedNodes)}")
+        print(f"DEBUG: Solver - Free Nodes: {len(self.freeNodes)}")
+        print(f"DEBUG: Solver - Fixed Values Max: {np.max(self.fixedValues) if len(self.fixedValues)>0 else 0}")
+        
+        if len(self.fixedNodes) == 0:
+             print("WARNING: No fixed nodes found! Solution might be non-unique or zero.")
+        
+        # Check Matrix
+        print(f"DEBUG: Global Matrix nnz: {self.globalMatrix.nnz}")
+        
         freeValues = spsolve(matrix_reduced, vector_reduced)
+        
+        print(f"DEBUG: Solver - Free Values Max: {np.max(np.abs(freeValues)) if len(freeValues)>0 else 0}")
 
         # Construct the complete potential vector in the correct order (same order as nodeTags)
         self.potential[self.fixedNodes] = self.fixedValues[self.fixedNodes]

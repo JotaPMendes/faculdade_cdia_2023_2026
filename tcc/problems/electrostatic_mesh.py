@@ -84,10 +84,14 @@ def create_electrostatic_mesh_problem(config):
     
     # Otimização: FNN profunda é robusta para geometria complexa
     # MsFFN pode ser instável se não calibrada, FNN é mais segura aqui.
-    net = dde.nn.FNN(
+    # Otimização: MsFFN (Multiscale Fourier Feature Network)
+    # Melhor para capturar altas frequências e singularidades geométricas
+    sigmas = config.get("pinn_config", {}).get("sigmas", [1, 10])
+    net = dde.nn.MsFFN(
         [2] + [50] * 4 + [1],
         "tanh",
-        "Glorot normal"
+        "Glorot normal",
+        sigmas=sigmas
     )
     
     # 5. Preparar dados para o Solver FEM (Professor)

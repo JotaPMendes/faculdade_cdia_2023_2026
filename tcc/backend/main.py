@@ -180,6 +180,12 @@ def update_config(new_config: ConfigUpdate):
     if "Ny_train" not in current_config:
         current_config["Ny_train"] = 50
 
+    # Ensure train_box is set for Poisson 2D
+    if current_config.get("problem") == "poisson_2d":
+        Lx = current_config.get("Lx", 1.0)
+        Ly = current_config.get("Ly", 1.0)
+        current_config["train_box"] = [0.0, 0.0, float(Lx), float(Ly)]
+
     try:
         with open(config_path, "w") as f:
             json.dump(current_config, f, indent=4)

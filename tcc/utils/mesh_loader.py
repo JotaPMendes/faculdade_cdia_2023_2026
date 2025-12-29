@@ -28,11 +28,18 @@ class MeshLoader:
             raise FileNotFoundError(f"Mesh file not found: {self.filename}")
             
         mesh = meshio.read(self.filename)
+        print(f"DEBUG: Mesh object: {mesh}")
+        print(f"DEBUG: Mesh keys: {dir(mesh)}")
+        print(f"DEBUG: mesh.cell_data keys: {mesh.cell_data.keys()}")
+        if hasattr(mesh, "cell_sets"):
+             print(f"DEBUG: mesh.cell_sets keys: {mesh.cell_sets.keys()}")
+        
         self.points = mesh.points
         
         # Parse physical names
         # mesh.field_data maps Name -> [tag, dim]
         tag_to_name = {}
+        print(f"DEBUG: mesh.field_data keys: {list(mesh.field_data.keys())}")
         for name, data in mesh.field_data.items():
             tag = data[0]
             tag_to_name[tag] = name
@@ -47,6 +54,7 @@ class MeshLoader:
         
         # Iterate over blocks to find lines and triangles
         cell_data_physical = mesh.cell_data.get('gmsh:physical', [])
+        print(f"DEBUG: cell_data_physical len: {len(cell_data_physical)}")
         
         for i, cell_block in enumerate(mesh.cells):
             cell_type = cell_block.type
@@ -77,6 +85,10 @@ class MeshLoader:
                     for node_idx in cell:
                         domain_set.add(node_idx)
                 self.domain_nodes = list(domain_set)
+        
+        print(f"DEBUG: Detected boundaries: {list(self.boundary_nodes.keys())}")
+        for name, nodes in self.boundary_nodes.items():
+            print(f"DEBUG: Boundary '{name}' has {len(nodes)} nodes.")
 
     def get_boundary_points(self, boundary_name):
         """Returns (N, 2) array of points for a given boundary name."""

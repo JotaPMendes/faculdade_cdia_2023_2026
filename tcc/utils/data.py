@@ -76,10 +76,9 @@ def generate_data_for_ml(problem, cfg, model_fem=None):
         ytr = u_true(Xtr)
         
         # Teste: Fora do train_box (Generalização Espacial)
-        # Geramos pontos em todo o domínio [0,1]x[0,1] e filtramos o que NÃO está no box
-        # Assumindo domínio padrão unitário para analíticos se não especificado
+        # Geramos pontos em todo o domínio [0,Lx]x[0,Ly] e filtramos o que NÃO está no box
         Lx = cfg.get("Lx", 1.0)
-        Ly = 1.0 
+        Ly = cfg.get("Ly", 1.0)
         
         N_cand = 10000
         Xcand = np.random.rand(N_cand, 2)
@@ -91,6 +90,12 @@ def generate_data_for_ml(problem, cfg, model_fem=None):
             (Xcand[:,1] >= by0) & (Xcand[:,1] <= by1)
         )
         Xte = Xcand[~mask_in_box] # Apenas fora
+        
+        # Fallback: Se o box cobrir tudo (Xte vazio), usamos pontos aleatórios do domínio todo (Interpolação)
+        if len(Xte) == 0:
+            print("ℹ️ Train Box cobre todo o domínio. Usando pontos aleatórios para teste (Interpolação).")
+            Xte = Xcand
+            
         yte = u_true(Xte)
         
         return Xtr, ytr, Xte, yte
