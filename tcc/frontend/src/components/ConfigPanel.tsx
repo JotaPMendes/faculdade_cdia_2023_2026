@@ -75,6 +75,8 @@ export default function ConfigPanel() {
                                 className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground"
                             >
                                 <option value="electrostatic_mesh">Electrostatic (Mesh)</option>
+                                <option value="magnetostatic_mesh">Magnetostatic (Mesh)</option>
+                                <option value="magnetodynamic_mesh">Magnetodynamic (Mesh)</option>
                                 <option value="poisson_2d">Poisson 2D</option>
                                 <option value="heat_1d">Heat 1D</option>
                                 <option value="wave_1d">Wave 1D</option>
@@ -115,10 +117,134 @@ export default function ConfigPanel() {
                     </div>
                 </Section>
 
+                {/* Problem Specific Parameters */}
+                {config.problem === 'poisson_2d' && (
+                    <Section title="Poisson 2D Parameters">
+                        <div className="grid grid-cols-2 gap-6">
+                            <InputGroup label="Lx (Width)">
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    value={config.Lx || 1.0}
+                                    onChange={(e) => handleChange('Lx', parseFloat(e.target.value))}
+                                    className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground"
+                                />
+                            </InputGroup>
+                            <InputGroup label="Ly (Height)">
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    value={config.Ly || 1.0}
+                                    onChange={(e) => handleChange('Ly', parseFloat(e.target.value))}
+                                    className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground"
+                                />
+                            </InputGroup>
+                        </div>
+                    </Section>
+                )}
+
+                {config.problem === 'magnetodynamic_mesh' && (
+                    <Section title="Magnetodynamic Parameters">
+                        <div className="grid grid-cols-3 gap-6">
+                            <InputGroup label="Frequency (Hz)">
+                                <input
+                                    type="number"
+                                    step="10"
+                                    value={config.frequency || 60}
+                                    onChange={(e) => handleChange('frequency', parseFloat(e.target.value))}
+                                    className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground"
+                                />
+                            </InputGroup>
+                            <InputGroup label="Sigma (Conductivity)">
+                                <input
+                                    type="number"
+                                    step="1000"
+                                    value={config.sigma || 58000000}
+                                    onChange={(e) => handleChange('sigma', parseFloat(e.target.value))}
+                                    className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground"
+                                />
+                            </InputGroup>
+                            <InputGroup label="Mu (Permeability)">
+                                <input
+                                    type="number"
+                                    step="0.0001"
+                                    value={config.mu || 1.0}
+                                    onChange={(e) => handleChange('mu', parseFloat(e.target.value))}
+                                    className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground"
+                                />
+                            </InputGroup>
+                        </div>
+                    </Section>
+                )}
+
+                {/* Slice Configuration (For Mesh Problems) */}
+                {config.problem.includes('mesh') && config.slice_config && (
+                    <Section title="Visualization Slice (1D)">
+                        <div className="grid grid-cols-2 gap-6">
+                            <InputGroup label="Start Point [x, y]">
+                                <div className="flex gap-2">
+                                    <input
+                                        type="number"
+                                        step="0.1"
+                                        value={config.slice_config.p_start[0]}
+                                        onChange={(e) => {
+                                            const newSlice = { ...config.slice_config }
+                                            newSlice.p_start[0] = parseFloat(e.target.value)
+                                            handleChange('slice_config', newSlice)
+                                        }}
+                                        className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground"
+                                        placeholder="X"
+                                    />
+                                    <input
+                                        type="number"
+                                        step="0.1"
+                                        value={config.slice_config.p_start[1]}
+                                        onChange={(e) => {
+                                            const newSlice = { ...config.slice_config }
+                                            newSlice.p_start[1] = parseFloat(e.target.value)
+                                            handleChange('slice_config', newSlice)
+                                        }}
+                                        className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground"
+                                        placeholder="Y"
+                                    />
+                                </div>
+                            </InputGroup>
+                            <InputGroup label="End Point [x, y]">
+                                <div className="flex gap-2">
+                                    <input
+                                        type="number"
+                                        step="0.1"
+                                        value={config.slice_config.p_end[0]}
+                                        onChange={(e) => {
+                                            const newSlice = { ...config.slice_config }
+                                            newSlice.p_end[0] = parseFloat(e.target.value)
+                                            handleChange('slice_config', newSlice)
+                                        }}
+                                        className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground"
+                                        placeholder="X"
+                                    />
+                                    <input
+                                        type="number"
+                                        step="0.1"
+                                        value={config.slice_config.p_end[1]}
+                                        onChange={(e) => {
+                                            const newSlice = { ...config.slice_config }
+                                            newSlice.p_end[1] = parseFloat(e.target.value)
+                                            handleChange('slice_config', newSlice)
+                                        }}
+                                        className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground"
+                                        placeholder="Y"
+                                    />
+                                </div>
+                            </InputGroup>
+                        </div>
+                    </Section>
+                )}
+
                 {/* Boundary Conditions */}
                 <Section title="Boundary Conditions">
                     <div className="space-y-4">
-                        {Object.entries(config.boundary_conditions).map(([key, val]: any) => (
+                        {Object.entries(config.boundary_conditions || {}).map(([key, val]: any) => (
                             <div key={key} className="flex items-center gap-4">
                                 <label className="w-32 text-sm text-muted-foreground">{key}</label>
                                 <input

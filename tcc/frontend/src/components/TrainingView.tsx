@@ -120,7 +120,11 @@ export default function TrainingView() {
                                     className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground mt-1"
                                 >
                                     <option value="electrostatic_mesh">Electrostatic (Mesh)</option>
+                                    <option value="magnetostatic_mesh">Magnetostatic (Mesh)</option>
+                                    <option value="magnetodynamic_mesh">Magnetodynamic (Mesh)</option>
                                     <option value="poisson_2d">Poisson 2D</option>
+                                    <option value="heat_1d">Heat 1D</option>
+                                    <option value="wave_1d">Wave 1D</option>
                                 </select>
                             </div>
 
@@ -147,9 +151,10 @@ export default function TrainingView() {
                         </div>
 
                         {/* Dynamic Fields based on Problem */}
-                        {config.problem === 'electrostatic_mesh' && (
+                        {/* Mesh Problems (Electrostatic, Magnetostatic, Magnetodynamic) */}
+                        {config.problem.includes('mesh') && (
                             <div className="space-y-6 pt-4 border-t border-border">
-                                <h4 className="font-semibold text-foreground">Electrostatic Settings</h4>
+                                <h4 className="font-semibold text-foreground">Mesh Settings</h4>
 
                                 {/* Mesh Selection & Upload */}
                                 <div className="space-y-3">
@@ -173,7 +178,40 @@ export default function TrainingView() {
                                     </div>
                                 </div>
 
-                                {/* Boundary Conditions - Compact */}
+                                {/* Magnetodynamic Specifics */}
+                                {config.problem === 'magnetodynamic_mesh' && (
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div>
+                                            <label className="text-sm text-muted-foreground font-medium">Freq (Hz)</label>
+                                            <input
+                                                type="number"
+                                                value={config.frequency || 60}
+                                                onChange={e => setConfig({ ...config, frequency: parseFloat(e.target.value) })}
+                                                className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground mt-1"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-sm text-muted-foreground font-medium">Sigma</label>
+                                            <input
+                                                type="number"
+                                                value={config.sigma || 5.8e7}
+                                                onChange={e => setConfig({ ...config, sigma: parseFloat(e.target.value) })}
+                                                className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground mt-1"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-sm text-muted-foreground font-medium">Mu (Rel)</label>
+                                            <input
+                                                type="number"
+                                                value={config.mu || 1.0}
+                                                onChange={e => setConfig({ ...config, mu: parseFloat(e.target.value) })}
+                                                className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground mt-1"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Boundary Conditions */}
                                 <div>
                                     <label className="text-sm text-muted-foreground font-medium mb-2 block">Boundary Conditions</label>
                                     <div className="grid grid-cols-2 gap-x-4 gap-y-2">
@@ -191,6 +229,60 @@ export default function TrainingView() {
                                                 />
                                             </div>
                                         ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Poisson 2D Settings */}
+                        {config.problem === 'poisson_2d' && (
+                            <div className="space-y-4 pt-4 border-t border-border">
+                                <h4 className="font-semibold text-foreground">Poisson Settings</h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-sm text-muted-foreground font-medium">Lx (Width)</label>
+                                        <input
+                                            type="number"
+                                            value={config.Lx || 1.0}
+                                            onChange={e => setConfig({ ...config, Lx: parseFloat(e.target.value) })}
+                                            className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground mt-1"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-sm text-muted-foreground font-medium">Ly (Height)</label>
+                                        <input
+                                            type="number"
+                                            value={config.Ly || 1.0}
+                                            onChange={e => setConfig({ ...config, Ly: parseFloat(e.target.value) })}
+                                            className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground mt-1"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Heat/Wave 1D Settings */}
+                        {(config.problem === 'heat_1d' || config.problem === 'wave_1d') && (
+                            <div className="space-y-4 pt-4 border-t border-border">
+                                <h4 className="font-semibold text-foreground">1D Problem Settings</h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-sm text-muted-foreground font-medium">Length (Lx)</label>
+                                        <input
+                                            type="number"
+                                            value={config.Lx || 1.0}
+                                            onChange={e => setConfig({ ...config, Lx: parseFloat(e.target.value) })}
+                                            className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground mt-1"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-sm text-muted-foreground font-medium">Time (T_train)</label>
+                                        <input
+                                            type="number"
+                                            value={config.T_train || 1.0}
+                                            onChange={e => setConfig({ ...config, T_train: parseFloat(e.target.value) })}
+                                            className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground mt-1"
+                                        />
                                     </div>
                                 </div>
                             </div>
