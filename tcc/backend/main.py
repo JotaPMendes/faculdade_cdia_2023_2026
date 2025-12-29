@@ -42,6 +42,17 @@ class ConfigUpdate(BaseModel):
     use_mesh: bool
     boundary_conditions: Dict[str, float]
     pinn_config: Optional[Dict[str, Any]] = None
+    # Optional fields for specific problems
+    Lx: Optional[float] = None
+    Ly: Optional[float] = None
+    T_train: Optional[float] = None
+    alpha: Optional[float] = None
+    c: Optional[float] = None
+    frequency: Optional[float] = None
+    sigma: Optional[float] = None
+    mu: Optional[float] = None
+    Nx_train: Optional[int] = None
+    Ny_train: Optional[int] = None
 
 class MeshGenRequest(BaseModel):
     type: str
@@ -160,6 +171,14 @@ def update_config(new_config: ConfigUpdate):
         }
     if "scaling_factor" not in current_config:
         current_config["scaling_factor"] = 100.0
+    if "alpha" not in current_config:
+        current_config["alpha"] = 0.01
+    if "c" not in current_config:
+        current_config["c"] = 1.0
+    if "Nx_train" not in current_config:
+        current_config["Nx_train"] = 50
+    if "Ny_train" not in current_config:
+        current_config["Ny_train"] = 50
 
     try:
         with open(config_path, "w") as f:

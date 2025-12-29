@@ -257,6 +257,24 @@ export default function TrainingView() {
                                             className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground mt-1"
                                         />
                                     </div>
+                                    <div>
+                                        <label className="text-sm text-muted-foreground font-medium">Nx (Train Grid)</label>
+                                        <input
+                                            type="number"
+                                            value={config.Nx_train || 50}
+                                            onChange={e => setConfig({ ...config, Nx_train: parseInt(e.target.value) })}
+                                            className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground mt-1"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-sm text-muted-foreground font-medium">Ny (Train Grid)</label>
+                                        <input
+                                            type="number"
+                                            value={config.Ny_train || 50}
+                                            onChange={e => setConfig({ ...config, Ny_train: parseInt(e.target.value) })}
+                                            className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground mt-1"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -265,7 +283,7 @@ export default function TrainingView() {
                         {(config.problem === 'heat_1d' || config.problem === 'wave_1d') && (
                             <div className="space-y-4 pt-4 border-t border-border">
                                 <h4 className="font-semibold text-foreground">1D Problem Settings</h4>
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-3 gap-4">
                                     <div>
                                         <label className="text-sm text-muted-foreground font-medium">Length (Lx)</label>
                                         <input
@@ -284,6 +302,28 @@ export default function TrainingView() {
                                             className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground mt-1"
                                         />
                                     </div>
+                                    {config.problem === 'heat_1d' && (
+                                        <div>
+                                            <label className="text-sm text-muted-foreground font-medium">Alpha</label>
+                                            <input
+                                                type="number"
+                                                value={config.alpha || 0.01}
+                                                onChange={e => setConfig({ ...config, alpha: parseFloat(e.target.value) })}
+                                                className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground mt-1"
+                                            />
+                                        </div>
+                                    )}
+                                    {config.problem === 'wave_1d' && (
+                                        <div>
+                                            <label className="text-sm text-muted-foreground font-medium">Wave Speed (c)</label>
+                                            <input
+                                                type="number"
+                                                value={config.c || 1.0}
+                                                onChange={e => setConfig({ ...config, c: parseFloat(e.target.value) })}
+                                                className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground mt-1"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
