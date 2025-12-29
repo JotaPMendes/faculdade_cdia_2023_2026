@@ -126,6 +126,20 @@ def get_run_details(run_id: str):
             
     return details
 
+@app.delete("/runs/{run_id}")
+def delete_run(run_id: str):
+    results_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "results")
+    run_path = os.path.join(results_dir, run_id)
+    
+    if not os.path.exists(run_path):
+        raise HTTPException(status_code=404, detail="Run not found")
+        
+    try:
+        shutil.rmtree(run_path)
+        return {"status": "success", "message": f"Run {run_id} deleted"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/config")
 def update_config(new_config: ConfigUpdate):
     config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.json")
