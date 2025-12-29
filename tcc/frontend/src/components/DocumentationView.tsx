@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { FileText, Book, Code, Archive } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
+import 'katex/dist/katex.min.css'
 import { cn } from '../utils/cn'
 
 export default function DocumentationView() {
@@ -60,8 +63,16 @@ export default function DocumentationView() {
                     {loading ? (
                         <div className="text-muted-foreground">Loading...</div>
                     ) : (
-                        <div className="prose prose-slate dark:prose-invert max-w-none">
-                            <ReactMarkdown>{content}</ReactMarkdown>
+                        <div className="prose prose-lg dark:prose-invert max-w-none 
+                            prose-headings:text-foreground prose-p:text-foreground/90 prose-strong:text-foreground prose-li:text-foreground/90
+                            prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1 prose-code:rounded prose-code:before:content-none prose-code:after:content-none
+                            prose-pre:bg-secondary prose-pre:text-foreground">
+                            <ReactMarkdown
+                                remarkPlugins={[remarkMath]}
+                                rehypePlugins={[rehypeKatex]}
+                            >
+                                {content}
+                            </ReactMarkdown>
                         </div>
                     )}
                 </div>
