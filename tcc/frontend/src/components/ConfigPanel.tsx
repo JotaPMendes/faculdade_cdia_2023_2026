@@ -75,8 +75,6 @@ export default function ConfigPanel() {
                                 className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground"
                             >
                                 <option value="electrostatic_mesh">Electrostatic (Mesh)</option>
-                                <option value="magnetostatic_mesh">Magnetostatic (Mesh)</option>
-                                <option value="magnetodynamic_mesh">Magnetodynamic (Mesh)</option>
                                 <option value="poisson_2d">Poisson 2D</option>
                                 <option value="heat_1d">Heat 1D</option>
                                 <option value="wave_1d">Wave 1D</option>
@@ -136,40 +134,6 @@ export default function ConfigPanel() {
                                     step="0.1"
                                     value={config.Ly || 1.0}
                                     onChange={(e) => handleChange('Ly', parseFloat(e.target.value))}
-                                    className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground"
-                                />
-                            </InputGroup>
-                        </div>
-                    </Section>
-                )}
-
-                {config.problem === 'magnetodynamic_mesh' && (
-                    <Section title="Magnetodynamic Parameters">
-                        <div className="grid grid-cols-3 gap-6">
-                            <InputGroup label="Frequency (Hz)">
-                                <input
-                                    type="number"
-                                    step="10"
-                                    value={config.frequency || 60}
-                                    onChange={(e) => handleChange('frequency', parseFloat(e.target.value))}
-                                    className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground"
-                                />
-                            </InputGroup>
-                            <InputGroup label="Sigma (Conductivity)">
-                                <input
-                                    type="number"
-                                    step="1000"
-                                    value={config.sigma || 58000000}
-                                    onChange={(e) => handleChange('sigma', parseFloat(e.target.value))}
-                                    className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground"
-                                />
-                            </InputGroup>
-                            <InputGroup label="Mu (Permeability)">
-                                <input
-                                    type="number"
-                                    step="0.0001"
-                                    value={config.mu || 1.0}
-                                    onChange={(e) => handleChange('mu', parseFloat(e.target.value))}
                                     className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground"
                                 />
                             </InputGroup>

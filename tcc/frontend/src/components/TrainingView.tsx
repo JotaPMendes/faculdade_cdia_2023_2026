@@ -120,8 +120,6 @@ export default function TrainingView() {
                                     className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground mt-1"
                                 >
                                     <option value="electrostatic_mesh">Electrostatic (Mesh)</option>
-                                    <option value="magnetostatic_mesh">Magnetostatic (Mesh)</option>
-                                    <option value="magnetodynamic_mesh">Magnetodynamic (Mesh)</option>
                                     <option value="poisson_2d">Poisson 2D</option>
                                     <option value="heat_1d">Heat 1D</option>
                                     <option value="wave_1d">Wave 1D</option>
@@ -177,39 +175,6 @@ export default function TrainingView() {
                                         />
                                     </div>
                                 </div>
-
-                                {/* Magnetodynamic Specifics */}
-                                {config.problem === 'magnetodynamic_mesh' && (
-                                    <div className="grid grid-cols-3 gap-4">
-                                        <div>
-                                            <label className="text-sm text-muted-foreground font-medium">Freq (Hz)</label>
-                                            <input
-                                                type="number"
-                                                value={config.frequency || 60}
-                                                onChange={e => setConfig({ ...config, frequency: parseFloat(e.target.value) })}
-                                                className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground mt-1"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-sm text-muted-foreground font-medium">Sigma</label>
-                                            <input
-                                                type="number"
-                                                value={config.sigma || 5.8e7}
-                                                onChange={e => setConfig({ ...config, sigma: parseFloat(e.target.value) })}
-                                                className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground mt-1"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-sm text-muted-foreground font-medium">Mu (Rel)</label>
-                                            <input
-                                                type="number"
-                                                value={config.mu || 1.0}
-                                                onChange={e => setConfig({ ...config, mu: parseFloat(e.target.value) })}
-                                                className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground mt-1"
-                                            />
-                                        </div>
-                                    </div>
-                                )}
 
                                 {/* Boundary Conditions */}
                                 <div>

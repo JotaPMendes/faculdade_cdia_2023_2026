@@ -22,7 +22,7 @@ def create_wave_problem(cfg):
     bcL = dde.icbc.DirichletBC(geomtime, lambda X: 0.0, lambda X, on_b: on_b and np.isclose(X[0], 0.0))
     bcR = dde.icbc.DirichletBC(geomtime, lambda X: 0.0, lambda X, on_b: on_b and np.isclose(X[0], Lx))
     ic_u = dde.icbc.IC(geomtime, lambda X: np.sin(np.pi*X[:,0:1]/Lx), lambda X, on_i: on_i)
-    
+
     def operator_bc(X, y, _):
         return dde.grad.jacobian(y, X, i=0, j=1) # du/dt
     ic_ut = dde.icbc.OperatorBC(geomtime, operator_bc, lambda X, on_i: np.isclose(X[1], 0.0))
@@ -32,7 +32,7 @@ def create_wave_problem(cfg):
 
     # Otimização: Wave Equation funciona melhor com ativação 'sin'
     net = dde.nn.FNN([2] + [64]*5 + [1], "sin", "Glorot uniform")
-    
+
     def feature_transform(X):
         x_norm = 2.0 * (X[:, 0:1] / Lx) - 1.0
         t_norm = 2.0 * (X[:, 1:2] / T_train) - 1.0
@@ -48,4 +48,4 @@ def create_wave_problem(cfg):
         "train_steps_lbfgs": 10000
     }
 
-    return dict(kind="time", u_true=u_true, data=data, net=net, use_mesh=False, pinn_config=pinn_config)
+    return dict(kind="time", u_true=u_true, data=data, net=net, use_mesh=False, pinn_config=pinn_config, num_pde_losses=1)

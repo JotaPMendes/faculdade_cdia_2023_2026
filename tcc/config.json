@@ -1,8 +1,8 @@
 {
-    "problem": "electrostatic_mesh",
+    "problem": "poisson_2d",
     "mesh_file": "meshes/files/plate_holes.msh",
-    "N_data": 15000,
-    "N_test": 2000,
+    "N_data": 20000,
+    "N_test": 4000,
     "keep_checkpoints": 3,
     "use_mesh": true,
     "boundary_conditions": {
@@ -12,7 +12,7 @@
         "Bottom": 0.0,
         "Holes": 0.0,
         "Inner": 0.0,
-        "Outer": 1.0
+        "Outer": 0.0
     },
     "scaling_factor": 100.0,
     "slice_config": {
@@ -28,7 +28,7 @@
         "xlabel": "Posi\u00e7\u00e3o X"
     },
     "alpha": 0.01,
-    "Lx": 2.0,
+    "Lx": 6.0,
     "T_train": 16.0,
     "c": 1.0,
     "Nx_train": 100,
@@ -36,7 +36,7 @@
     "train_box": [
         0.0,
         0.0,
-        2.0,
+        6.0,
         2.0
     ],
     "Ly": 2.0,
@@ -60,5 +60,7 @@
             1,
             10
         ]
-    }
+    },
+    "frequency": 10.0,
+    "sigma": 10000.0
 }

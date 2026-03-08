@@ -14,54 +14,79 @@ class PINN:
     def train(self):
         # Obter configurações específicas do problema (se existirem)
         pinn_cfg = self.problem.get("pinn_config", {})
-        
-        # Pesos dinâmicos: PDE = 1.0, BCs = 100.0 (Harder enforcement)
-        # DeepXDE organiza losses como [PDE, BC1, BC2, ..., IC]
-        loss_weights = [1.0] # PDE
+
+        # Pesos dinâmicos: PDEs = 1.0, BCs = 100.0 (Harder enforcement)
+        # Em problemas vetoriais, a PDE pode retornar múltiplos resíduos.
+        # DeepXDE organiza os losses como [PDE_1, PDE_2, ..., BC1, BC2, ..., IC].
+        def infer_num_pde_losses():
+            # Preferência 1: configuração explícita do problema.
+            if "num_pde_losses" in pinn_cfg:
+                return int(pinn_cfg["num_pde_losses"])
+
+            # Preferência 2: metadado do problema criado no factory.
+            if "num_pde_losses" in self.problem:
+                return int(self.problem["num_pde_losses"])
+
+            raise ValueError(
+                "Problema sem metadado explícito 'num_pde_losses'. "
+                "Declare esse valor no factory do problema ou em 'pinn_config'."
+            )
+
+        num_pde_losses = infer_num_pde_losses()
+        bc_weight = pinn_cfg.get("bc_loss_weight", 100.0)
+        pde_weight = pinn_cfg.get("pde_loss_weight", 1.0)
+
+        loss_weights = [pde_weight] * num_pde_losses
         if self.data.bcs:
-            loss_weights += [100.0] * len(self.data.bcs) # BCs (inclui IC se passado em bcs)
+            loss_weights += [bc_weight] * len(self.data.bcs) # BCs (inclui IC se passado em bcs)
+
+        print(
+            f">>> Loss setup: {num_pde_losses} PDE residual(s), "
+            f"{len(self.data.bcs) if self.data.bcs else 0} BC(s), "
+            f"total weights={len(loss_weights)}"
+        )
 
         # Pesos de Loss (Estático ou Adaptativo)
         adaptive_loss = pinn_cfg.get("adaptive_loss", False)
         if adaptive_loss:
             print(">>> Usando Pesos Adaptativos (NTK)...")
             loss_weights = "NTK"
-        
+
         # Otimizador Adam
         self.model.compile("adam", lr=1e-3, loss_weights=loss_weights)
-        
+
         # Configuração de Checkpoint via Manager
         max_keep = self.config.get("keep_checkpoints", 0)
         ckpt_manager = CheckpointManager(max_keep=max_keep)
         ckpt_dir = ckpt_manager.get_run_dir(self.config)
         ckpt_path = os.path.join(ckpt_dir, "model.ckpt")
-        
+
         # Callback customizado para limpeza
         class CleanupCallback(dde.callbacks.Callback):
             def __init__(self, manager, run_dir):
                 super().__init__()
                 self.manager = manager
                 self.run_dir = run_dir
-                
+
             def on_epoch_end(self):
                 pass
-                
+
             def on_train_end(self):
                 self.manager.cleanup(self.run_dir)
-                
+
         cleanup_cb = CleanupCallback(ckpt_manager, ckpt_dir)
-        
+
         # Early Stopping
         early_stopping = dde.callbacks.EarlyStopping(min_delta=1e-4, patience=2000)
-        
+
         # Frequência de Checkpoint
         save_period = self.config.get("checkpoint_every", 1000)
         checker = dde.callbacks.ModelCheckpoint(ckpt_path, save_better_only=True, period=save_period)
-        
+
         # Tentar restaurar modelo existente
         latest_step = 0
         restore_path = None
-        
+
         if os.path.exists(ckpt_dir):
             checkpoints = [f for f in os.listdir(ckpt_dir) if f.startswith("model.ckpt-") and f.endswith(".index")]
             if checkpoints:
@@ -76,20 +101,20 @@ class PINN:
                     print(f"⚠️ Falha ao restaurar checkpoint (provável mudança de arquitetura): {e}")
                     print(">>> Iniciando treinamento do zero...")
                     latest_step = 0
-        
+
         # Treinamento Adam
         total_adam_iters = pinn_cfg.get("train_steps_adam", self.config.get("train_steps_adam", 15000))
         remaining_iters = total_adam_iters - latest_step
-        
+
         if remaining_iters > 0:
             print(f">>> Iniciando treinamento ADAM por {remaining_iters} iterações (Total: {total_adam_iters})...")
         if remaining_iters > 0:
             print(f">>> Iniciando treinamento ADAM por {remaining_iters} iterações (Total: {total_adam_iters})...")
-            
+
             # RAR (Residual-based Adaptive Refinement)
             rar_iters = pinn_cfg.get("rar_iters", 0)
             callbacks = [checker, cleanup_cb, early_stopping]
-            
+
             if rar_iters > 0:
                 print(f">>> RAR Ativado: Adicionando pontos a cada {rar_iters} iterações.")
                 # RAR não é compatível com PDEPointResampler (ambos mudam pontos)
@@ -101,15 +126,15 @@ class PINN:
                 callbacks.append(resampler)
 
             self.history = self.model.train(
-                iterations=remaining_iters, 
-                callbacks=callbacks, 
+                iterations=remaining_iters,
+                callbacks=callbacks,
                 display_every=500
             )
         else:
             print(f">>> Treinamento ADAM já concluído (Step {latest_step} >= {total_adam_iters}). Pulando...")
             # Create a dummy history object if skipped, or just return None/empty
-            # DeepXDE returns a LossHistory object. 
-            # If we skip, we might not have history. 
+            # DeepXDE returns a LossHistory object.
+            # If we skip, we might not have history.
             # For now, let's assume L-BFGS will run or we handle it.
 
         # Refinamento L-BFGS
@@ -118,14 +143,14 @@ class PINN:
             print(f">>> Refinando com L-BFGS por {lbfgs_iters} iterações...")
             self.model.compile("L-BFGS", loss_weights=loss_weights)
             self.history = self.model.train(iterations=lbfgs_iters, callbacks=[checker, cleanup_cb, early_stopping], display_every=500)
-        
+
         # Save final model explicitly to run_dir (passed in config or inferred)
         # Note: self.config doesn't have run_dir directly, but ckpt_manager derived it.
         # Let's save to ckpt_dir/pinn_model.h5 which is what main.py expects (or main.py saves it itself?)
         # main.py tries to save it: pinn.model.save(os.path.join(run_dir, "pinn_model.h5"))
         # But main.py might not have access to the internal session if DeepXDE closes it?
         # No, DeepXDE keeps session open.
-        
+
         # However, let's ensure it's saved here too just in case.
         save_path = os.path.join(ckpt_dir, "pinn_model.h5")
         self.model.save(save_path)

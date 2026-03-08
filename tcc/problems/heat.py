@@ -25,10 +25,10 @@ def create_heat_problem(cfg):
 
     data = dde.data.TimePDE(geomtime, pde, [bcL, bcR, ic],
                             num_domain=4000, num_boundary=400, num_initial=400, num_test=1000)
-    
+
     # Otimização: Heat Equation é suave, tanh é ideal.
     net = dde.nn.FNN([2] + [64]*3 + [1], "tanh", "Glorot uniform")
-    
+
     def feature_transform(X):
         x_norm = 2.0 * (X[:, 0:1] / Lx) - 1.0
         t_norm = 2.0 * (X[:, 1:2] / T_train) - 1.0
@@ -44,4 +44,4 @@ def create_heat_problem(cfg):
         "train_steps_lbfgs": 10000
     }
 
-    return dict(kind="time", u_true=u_true, data=data, net=net, use_mesh=False, pinn_config=pinn_config)
+    return dict(kind="time", u_true=u_true, data=data, net=net, use_mesh=False, pinn_config=pinn_config, num_pde_losses=1)
