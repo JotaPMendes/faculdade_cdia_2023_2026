@@ -7,12 +7,15 @@ export default function ResultsView() {
     const [runs, setRuns] = useState<any[]>([])
     const [selectedRun, setSelectedRun] = useState<string | null>(null)
     const [runDetails, setRunDetails] = useState<any>(null)
+    const [showDetails, setShowDetails] = useState(false)
 
     useEffect(() => {
         fetchRuns()
-        const interval = setInterval(fetchRuns, 5000)
+        const interval = setInterval(() => {
+            fetchRuns()
+        }, 5000)
         return () => clearInterval(interval)
-    }, [])
+    }, [selectedRun])
 
     useEffect(() => {
         if (selectedRun) {
@@ -24,9 +27,13 @@ export default function ResultsView() {
         try {
             const res = await axios.get('http://localhost:8000/runs')
             setRuns(res.data)
-            if (!selectedRun && res.data.length > 0) {
-                setSelectedRun(res.data[0].id)
-            }
+            setSelectedRun((currentSelectedRun) => {
+                if (res.data.length === 0) return null
+                if (currentSelectedRun && res.data.some((run: any) => run.id === currentSelectedRun)) {
+                    return currentSelectedRun
+                }
+                return res.data[0].id
+            })
         } catch (error) {
             console.error("Failed to fetch runs", error)
         }
@@ -39,6 +46,27 @@ export default function ResultsView() {
         } catch (error) {
             console.error("Failed to fetch run details", error)
         }
+    }
+
+    const renderKeyValueList = (data: Record<string, any> | undefined) => {
+        if (!data || Object.keys(data).length === 0) {
+            return <p className="text-sm text-muted-foreground">No data available.</p>
+        }
+
+        return (
+            <dl className="space-y-2">
+                {Object.entries(data).map(([key, value]) => (
+                    <div key={key} className="grid grid-cols-[140px_1fr] gap-3 rounded-md border border-border/60 bg-background/40 px-3 py-2">
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{key}</dt>
+                        <dd className="text-sm text-foreground break-words font-mono">
+                            {typeof value === 'object' && value !== null
+                                ? JSON.stringify(value, null, 2)
+                                : String(value)}
+                        </dd>
+                    </div>
+                ))}
+            </dl>
+        )
     }
 
     const deleteRun = async (runId: string, e: React.MouseEvent) => {
@@ -55,6 +83,7 @@ export default function ResultsView() {
     }
 
     return (
+        <>
         <div className="h-full flex overflow-hidden">
             {/* Sidebar List */}
             <div className="w-80 border-r border-border bg-card flex flex-col">
@@ -142,7 +171,10 @@ export default function ResultsView() {
                                     <Activity size={16} />
                                     Visualization
                                 </a>
-                                <button className="flex items-center gap-2 px-4 py-2 bg-secondary text-foreground rounded-lg hover:bg-secondary/80 transition-colors text-sm font-medium">
+                                <button
+                                    onClick={() => setShowDetails(true)}
+                                    className="flex items-center gap-2 px-4 py-2 bg-secondary text-foreground rounded-lg hover:bg-secondary/80 transition-colors text-sm font-medium"
+                                >
                                     <FileText size={16} />
                                     Details
                                 </button>
@@ -165,5 +197,41 @@ export default function ResultsView() {
                 )}
             </div>
         </div>
+        {showDetails && selectedRun && runDetails && (
+            <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm">
+                <div className="h-full w-full max-w-2xl overflow-y-auto border-l border-border bg-card shadow-2xl">
+                    <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card/95 px-6 py-4 backdrop-blur">
+                        <div>
+                            <h3 className="text-lg font-bold text-foreground">Run Details</h3>
+                            <p className="text-sm text-muted-foreground">{selectedRun}</p>
+                        </div>
+                        <button
+                            onClick={() => setShowDetails(false)}
+                            className="rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
+                        >
+                            Close
+                        </button>
+                    </div>
+
+                    <div className="space-y-6 p-6">
+                        <section>
+                            <h4 className="mb-3 text-sm font-semibold uppercase tracking-wide text-primary">Config</h4>
+                            {renderKeyValueList(runDetails.config)}
+                        </section>
+
+                        <section>
+                            <h4 className="mb-3 text-sm font-semibold uppercase tracking-wide text-primary">Metrics</h4>
+                            {renderKeyValueList(runDetails.metrics)}
+                        </section>
+
+                        <section>
+                            <h4 className="mb-3 text-sm font-semibold uppercase tracking-wide text-primary">Model Summary</h4>
+                            {renderKeyValueList(runDetails.model_summary)}
+                        </section>
+                    </div>
+                </div>
+            </div>
+        )}
+        </>
     )
 }
