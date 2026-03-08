@@ -1,0 +1,47 @@
+### 1) Criar reserva válida (mesa 7, 2026-03-09)
+POST http://127.0.0.1:8000/reservas
+Content-Type: application/json
+
+{
+	"mesa": 7,
+	"nome": "João",
+	"pessoas": 3,
+	"horario": "2026-03-09T18:00:00"
+}
+
+### 2) Falha ao reservar mesa 5 para a mesma data (conflito por dia)
+POST http://127.0.0.1:8000/reservas
+Content-Type: application/json
+
+{
+	"mesa": 5,
+	"nome": "Fernanda",
+	"pessoas": 2,
+	"horario": "2026-03-08T20:00:00"
+}
+
+### 3) Falha por antecedência insuficiente (data no passado)
+POST http://127.0.0.1:8000/reservas
+Content-Type: application/json
+
+{
+	"mesa": 8,
+	"nome": "Carlos",
+	"pessoas": 2,
+	"horario": "2025-01-01T12:00:00"
+}
+
+### 4) Listar reservas ativas para 2026-03-09
+GET http://127.0.0.1:8000/reservas?data=2026-03-09&status=ativa
+
+### 5) Buscar a reserva recém criada (id esperado: 3)
+GET http://127.0.0.1:8000/reservas/3
+
+### 6) Retornar todas as reservas da mesa 7
+GET http://127.0.0.1:8000/reservas/mesa/7
+
+### 7) Cancelar a reserva 3
+DELETE http://127.0.0.1:8000/reservas/3
+
+### 8) Listar reservas canceladas
+GET http://127.0.0.1:8000/reservas?status=cancelada
