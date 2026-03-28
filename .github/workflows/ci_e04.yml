@@ -1,4 +1,4 @@
-name: CI — Bella Tavola
+name: CI - E03 Fraud API
 
 on:
   push:
@@ -7,29 +7,42 @@ on:
     branches: [main]
 
 jobs:
-  verificar-api:
+  verificar-e03:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Baixar o código
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configurar Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Instalar dependências
+      - name: Instalar dependencias
         run: |
           pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r 7_semestre/cdia2/e03/requirements.txt
 
-      - name: Iniciar a API em background
-        run: |
-          uvicorn ___:app &    # (!) ajuste para o caminho do seu app
-          sleep 3
+      - name: Treinar modelo local
+        run: python 7_semestre/cdia2/e03/train.py
 
-      - name: Verificar que a API responde
+      - name: Iniciar API em background
         run: |
-          curl --fail http://localhost:8000/___    # (!) ajuste para sua rota
-          echo "API respondeu com sucesso"
+          cd 7_semestre/cdia2/e03
+          uvicorn main:app --host 127.0.0.1 --port 8000 &
+          sleep 5
+
+      - name: Verificar endpoint raiz
+        run: |
+          curl --fail http://127.0.0.1:8000/
+
+      - name: Verificar health do modelo
+        run: |
+          curl --fail http://127.0.0.1:8000/ml/health
+
+      - name: Verificar predição
+        run: |
+          curl --fail --request POST "http://127.0.0.1:8000/ml/predict" \
+            --header "Content-Type: application/json" \
+            --data '{"valor_transacao": 250.0, "hora_transacao": 14, "distancia_ultima_compra": 12.5, "tentativas_senha": 1, "pais_diferente": 0, "device_risk_score": 0.3}'
