@@ -1,0 +1,35 @@
+name: CI — Bella Tavola
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verificar-api:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependências
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Iniciar a API em background
+        run: |
+          uvicorn ___:app &    # (!) ajuste para o caminho do seu app
+          sleep 3
+
+      - name: Verificar que a API responde
+        run: |
+          curl --fail http://localhost:8000/___    # (!) ajuste para sua rota
+          echo "API respondeu com sucesso"
