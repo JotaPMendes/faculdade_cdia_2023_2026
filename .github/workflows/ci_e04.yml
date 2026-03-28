@@ -26,7 +26,9 @@ jobs:
           pip install -r 7_semestre/cdia2/e03/requirements.txt
 
       - name: Treinar modelo local
-        run: python 7_semestre/cdia2/e03/train.py
+        run: |
+          cd 7_semestre/cdia2/e03
+          python train.py
 
       - name: Iniciar API em background
         run: |
