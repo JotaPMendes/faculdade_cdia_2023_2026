@@ -49,7 +49,7 @@ Antes de começar, confirme que você já tem:
 """
 
 # Execute esta célula para instalar os pacotes necessários
-!pip install scikit-learn joblib pandas numpy huggingface_hub fastapi uvicorn
+## !pip install scikit-learn joblib pandas numpy huggingface_hub fastapi uvicorn
 
 """### Token do Hugging Face
 

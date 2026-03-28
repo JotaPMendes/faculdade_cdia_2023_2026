@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from models.prato import PratoInput, PratoOutput
+from models.prato import DisponibilidadeInput, PratoInput, PratoOutput
 from typing import Optional
 from datetime import datetime
 
@@ -72,12 +72,10 @@ async def aplicar_desconto(prato_id: int, percentual: float):
     prato["preco"] = prato["preco"] * (1 - percentual / 100)
     return prato
 
-# Exercicio 2.5 - PENDENTE: PUT /pratos/{prato_id}/disponibilidade
-
-@router.post("/{prato_id}/alterar_disponbilidade")
-async def alterar_disponbilidade(prato_id: int, disponibilidade: bool):
+@router.put("/{prato_id}/disponibilidade")
+async def alterar_disponibilidade(prato_id: int, body: DisponibilidadeInput):
     for prato in pratos:
         if prato["id"] == prato_id:
-            prato["disponivel"] = disponibilidade
+            prato["disponivel"] = body.disponivel
             return prato
     raise HTTPException(status_code=404, detail="Prato não encontrado")

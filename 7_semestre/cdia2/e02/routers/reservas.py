@@ -17,6 +17,7 @@ reservas = [
         "pessoas": 4,
         "horario": datetime(2026, 3, 8, 18, 0),
         "ativa": True,
+        "criada_em": "2026-03-01T10:00:00",
     },
     {
         "id": 2,
@@ -25,6 +26,7 @@ reservas = [
         "pessoas": 2,
         "horario": datetime(2026, 3, 8, 19, 30),
         "ativa": True,
+        "criada_em": "2026-03-01T11:00:00",
     },
 ]
 
@@ -85,6 +87,7 @@ async def criar_reserva(reserva: ReservaInput):
         "id": len(reservas) + 1,
         **reserva.model_dump(),
         "ativa": True,
+        "criada_em": datetime.now().isoformat(),
     }
     reservas.append(nova_reserva)
     return nova_reserva
@@ -95,5 +98,7 @@ async def cancelar_reserva(reserva_id: int):
     reserva = buscar_reserva_por_id(reserva_id)
     if not reserva:
         raise HTTPException(status_code=404, detail="Reserva não encontrada")
+    if not reserva["ativa"]:
+        raise HTTPException(status_code=400, detail="Reserva já está cancelada")
     reserva["ativa"] = False
     return {"mensagem": "cancelada"}

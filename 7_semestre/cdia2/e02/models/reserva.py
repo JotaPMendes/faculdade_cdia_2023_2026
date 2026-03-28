@@ -10,7 +10,7 @@ from config import settings
 class ReservaInput(BaseModel):
     mesa: int = Field(ge=1, le=settings.max_mesas)
     nome: str = Field(min_length=2, max_length=100)
-    pessoas: int = Field(ge=1, le=settings.max_pessoas_por_mesas)
+    pessoas: int = Field(ge=1, le=settings.max_pessoas_por_mesa)
     horario: datetime = Field()
 
     @field_validator("horario")
@@ -28,3 +28,4 @@ class ReservaOutput(BaseModel):
     pessoas: int
     horario: datetime
     ativa: bool
+    criada_em: str
