@@ -5,3 +5,7 @@ joblib
 fastapi
 uvicorn
 huggingface_hub
+httpx
+pytest
+black
+autoflake
