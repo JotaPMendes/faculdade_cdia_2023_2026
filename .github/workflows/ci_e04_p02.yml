@@ -1,0 +1,51 @@
+name: CI - E04 P02 Bella Tavola
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  testes-smoke-e02:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependencias
+        run: |
+          pip install --upgrade pip
+          pip install -r 7_semestre/cdia2/e02/requirements.txt
+
+      - name: Rodar testes smoke
+        run: pytest 7_semestre/cdia2/e02/tests -m smoke -v --tb=short
+
+  testes-completos-e02:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: testes-smoke-e02
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependencias
+        run: |
+          pip install --upgrade pip
+          pip install -r 7_semestre/cdia2/e02/requirements.txt
+
+      - name: Rodar suite completa
+        run: pytest 7_semestre/cdia2/e02/tests -v --tb=short
