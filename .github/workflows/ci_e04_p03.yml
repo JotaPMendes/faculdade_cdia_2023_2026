@@ -1,0 +1,120 @@
+name: CI - E04 P03 Integracao Modelo
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  qualidade:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependencias
+        run: |
+          pip install --upgrade pip
+          pip install -r 7_semestre/cdia2/e03/requirements.txt
+
+      - name: Diagnostico do ambiente
+        run: |
+          echo "=== Python ==="
+          python --version
+          echo "=== Dependencias ==="
+          pip list
+          echo "=== Arquivos centrais ==="
+          test -f 7_semestre/cdia2/e03/main.py && echo "OK main.py" || echo "main.py ausente"
+          test -f 7_semestre/cdia2/e03/model_utils.py && echo "OK model_utils.py" || echo "model_utils.py ausente"
+          test -d 7_semestre/cdia2/e03/tests && echo "OK tests/" || echo "tests/ ausente"
+
+      - name: Verificar formatacao
+        run: |
+          black --check \
+            7_semestre/cdia2/e03/main.py \
+            7_semestre/cdia2/e03/model_utils.py \
+            7_semestre/cdia2/e03/routers/predict.py \
+            7_semestre/cdia2/e03/tests
+
+      - name: Verificar imports nao usados
+        run: |
+          autoflake --check --remove-all-unused-imports --recursive \
+            7_semestre/cdia2/e03/main.py \
+            7_semestre/cdia2/e03/model_utils.py \
+            7_semestre/cdia2/e03/routers \
+            7_semestre/cdia2/e03/tests
+
+      - name: Rodar testes smoke
+        run: pytest 7_semestre/cdia2/e03/tests -m smoke -v --tb=short
+
+  integracao:
+    runs-on: ubuntu-latest
+    needs: qualidade
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependencias
+        run: |
+          pip install --upgrade pip
+          pip install -r 7_semestre/cdia2/e03/requirements.txt
+
+      - name: Cache modelo Hugging Face
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-model-v1-py311-${{ hashFiles('7_semestre/cdia2/e03/requirements.txt') }}
+
+      - name: Diagnostico integracao
+        run: |
+          python --version
+          if [ -n "$HF_TOKEN" ]; then echo "HF_TOKEN definido"; else echo "HF_TOKEN ausente"; fi
+          if [ -n "$HF_REPO_ID" ]; then echo "HF_REPO_ID definido"; else echo "HF_REPO_ID ausente"; fi
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_REPO_ID: ${{ secrets.HF_REPO_ID }}
+
+      - name: Verificar variaveis de integracao
+        run: python -c "import os; assert os.environ.get('HF_TOKEN'), 'HF_TOKEN nao configurado'; assert os.environ.get('HF_REPO_ID'), 'HF_REPO_ID nao configurado'"
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_REPO_ID: ${{ secrets.HF_REPO_ID }}
+
+      - name: Rodar testes de integracao
+        run: pytest 7_semestre/cdia2/e03/tests -m integracao -v --tb=short
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_REPO_ID: ${{ secrets.HF_REPO_ID }}
+
+  relatorio:
+    runs-on: ubuntu-latest
+    needs: integracao
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resumo do pipeline
+        run: |
+          echo "=============================================="
+          echo "Pipeline E04 P03 concluido"
+          echo "Branch:  ${{ github.ref_name }}"
+          echo "Commit:  ${{ github.sha }}"
+          echo "Autor:   ${{ github.actor }}"
+          echo "=============================================="
