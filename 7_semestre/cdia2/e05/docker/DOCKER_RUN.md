@@ -1,36 +1,67 @@
-# Bella Tavola — Docker (moved for notebook e05)
+# Bella Tavola — Docker (e05 p2)
 
-The Docker artifacts for the e05 notebook were moved here. The application source code remains in `7_semestre/cdia2/e02`.
+This folder contains the Docker artifacts for e05-p2:
 
-docker build -f Dockerfile -t bella-tavola:e02 ../e02
-Build image (use this Dockerfile and the project code in `../../e02` as build context):
+- hardened multi-stage `Dockerfile` with non-root runtime user
+- `docker-compose.yml` for API + PostgreSQL + Nginx
+- `nginx.conf` reverse proxy entrypoint
+
+The API source code used by the Docker build is in `7_semestre/cdia2/e03`.
+
+## 1) Build the image directly
 
 ```bash
 cd 7_semestre/cdia2/e05/docker
-# Dockerfile is in this folder, project source (requirements.txt, main.py) is in ../../e02
-docker build -f Dockerfile -t bella-tavola:e05 ../../e02
+docker build -f Dockerfile -t bella-tavola:e05-p2 ../../e03
 ```
 
-Run container (detached, map port 8000):
+Run and validate directly:
 
 ```bash
-docker run -d -p 8000:8000 --name bella-e05 bella-tavola:e05
+docker run --rm -p 8000:8000 bella-tavola:e05-p2
+curl http://localhost:8000/
+curl http://localhost:8000/ml/health
 ```
 
-Run container interactively (remove on exit):
+## 2) Run the full stack with Compose
 
 ```bash
-docker run --rm -it -p 8000:8000 bella-tavola:e05
+cd 7_semestre/cdia2/e05/docker
+docker compose up -d --build
 ```
 
-Stop and remove container:
+Validate through Nginx (port 80):
 
 ```bash
-docker stop bella-e05 && docker rm bella-e05
+curl http://localhost/
+curl http://localhost/ml/health
 ```
 
-View logs:
+If you have Hugging Face credentials set in your shell (`HF_TOKEN` and `HF_REPO_ID`), you can also test prediction:
 
 ```bash
-docker logs -f bella-e05
+curl -X POST http://localhost/ml/predict \
+	-H "Content-Type: application/json" \
+	-d '{
+		"valor_transacao": 150.0,
+		"hora_transacao": 14,
+		"distancia_ultima_compra": 5.0,
+		"tentativas_senha": 1,
+		"pais_diferente": 0,
+		"device_risk_score": 0.25
+	}'
+```
+
+## 3) Inspect and shutdown
+
+```bash
+docker compose ps
+docker compose logs -f api
+docker compose down
+```
+
+If you also want to remove PostgreSQL data volume:
+
+```bash
+docker compose down -v
 ```

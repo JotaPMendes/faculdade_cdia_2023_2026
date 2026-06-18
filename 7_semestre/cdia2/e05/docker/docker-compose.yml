@@ -1,0 +1,39 @@
+services:
+  api:
+    build:
+      context: ../../e03
+      dockerfile: ../e05/docker/Dockerfile
+    environment:
+      HF_REPO_ID: ${HF_REPO_ID:-}
+      HF_TOKEN: ${HF_TOKEN:-}
+      DATABASE_URL: postgresql://bella:secreta@db:5432/bellatavolada
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: bellatavolada
+      POSTGRES_USER: bella
+      POSTGRES_PASSWORD: secreta
+    volumes:
+      - bella-pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bella -d bellatavolada"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
+
+volumes:
+  bella-pg-data:
