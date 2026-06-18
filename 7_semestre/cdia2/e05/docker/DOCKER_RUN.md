@@ -9,6 +9,8 @@ cd 7_semestre/cdia2/e05/docker
 docker build -f Dockerfile -t bella-tavola:e05 ../../e02
 ```
 
+Create a local `.env` in `7_semestre/cdia2/e02` with your Hugging Face token before running the stack.
+
 Run the API container directly:
 
 ```bash

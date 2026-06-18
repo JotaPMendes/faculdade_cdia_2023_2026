@@ -6,6 +6,9 @@ class Settings(BaseSettings):
     debug: bool=False
     max_mesas: int=20
     max_pessoas_por_mesa: int=10
+    hf_token: str | None = None
+    persist_pratos: bool = False
+    pratos_store_file: str = "data/pratos.json"
 
     class Config:
         env_file=".env"

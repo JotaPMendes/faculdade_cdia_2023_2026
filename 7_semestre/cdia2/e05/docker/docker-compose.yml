@@ -3,6 +3,8 @@ services:
     build:
       context: ../../e02
       dockerfile: ../e05/docker/Dockerfile
+    env_file:
+      - ../../e02/.env
     volumes:
       - bella-dados:/app/data
     depends_on:
@@ -10,6 +12,8 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://bella:secreta@db:5432/bellatavolada
+      PERSIST_PRATOS: "true"
+      PRATOS_STORE_FILE: /app/data/pratos.json
 
   db:
     image: postgres:15

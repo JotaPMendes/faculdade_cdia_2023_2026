@@ -2,10 +2,14 @@ from fastapi import APIRouter, HTTPException
 from models.prato import DisponibilidadeInput, PratoInput, PratoOutput
 from typing import Optional
 from datetime import datetime
+from pathlib import Path
+import json
+from copy import deepcopy
+from config import settings
 
 router = APIRouter()
 
-pratos = [
+_seed_pratos = [
     {"id": 1, "nome": "Niguiri de Salmão", "categoria": "japonesa", "preco": 45.0, "disponivel": True, "criado_em": datetime.now().isoformat()},
     {"id": 2, "nome": "Tempurá de Vegetais", "categoria": "japonesa", "preco": 38.0, "disponivel": True, "criado_em": datetime.now().isoformat()},
     {"id": 3, "nome": "Sushi Variado", "categoria": "japonesa", "preco": 60.0, "disponivel": False, "criado_em": datetime.now().isoformat()},
@@ -13,6 +17,39 @@ pratos = [
     {"id": 5, "nome": "Gyoza", "categoria": "japonesa", "preco": 28.0, "disponivel": True, "criado_em": datetime.now().isoformat()},
     {"id": 6, "nome": "Mochi", "categoria": "japonesa", "preco": 15.0, "disponivel": False, "criado_em": datetime.now().isoformat()},
 ]
+
+
+def _store_path() -> Path:
+    return Path(settings.pratos_store_file)
+
+
+def _load_pratos() -> list[dict]:
+    if not settings.persist_pratos:
+        return deepcopy(_seed_pratos)
+
+    store_path = _store_path()
+    if store_path.exists():
+        with store_path.open("r", encoding="utf-8") as arquivo:
+            return json.load(arquivo)
+
+    store_path.parent.mkdir(parents=True, exist_ok=True)
+    pratos_iniciais = deepcopy(_seed_pratos)
+    with store_path.open("w", encoding="utf-8") as arquivo:
+        json.dump(pratos_iniciais, arquivo, ensure_ascii=False, indent=2)
+    return pratos_iniciais
+
+
+def _save_pratos(pratos_atuais: list[dict]) -> None:
+    if not settings.persist_pratos:
+        return
+
+    store_path = _store_path()
+    store_path.parent.mkdir(parents=True, exist_ok=True)
+    with store_path.open("w", encoding="utf-8") as arquivo:
+        json.dump(pratos_atuais, arquivo, ensure_ascii=False, indent=2)
+
+
+pratos = _load_pratos()
 
 @router.get("/")
 async def listar_pratos(
@@ -49,6 +86,7 @@ async def criar_prato(prato: PratoInput):
         "criado_em": datetime.now().isoformat(),
         **prato.model_dump()}
     pratos.append(novo_prato)
+    _save_pratos(pratos)
     return novo_prato
 
 @router.post("/{prato_id}/aplicar_desconto")
@@ -70,6 +108,7 @@ async def aplicar_desconto(prato_id: int, percentual: float):
         )
 
     prato["preco"] = prato["preco"] * (1 - percentual / 100)
+    _save_pratos(pratos)
     return prato
 
 @router.put("/{prato_id}/disponibilidade")
@@ -77,5 +116,6 @@ async def alterar_disponibilidade(prato_id: int, body: DisponibilidadeInput):
     for prato in pratos:
         if prato["id"] == prato_id:
             prato["disponivel"] = body.disponivel
+            _save_pratos(pratos)
             return prato
     raise HTTPException(status_code=404, detail="Prato não encontrado")

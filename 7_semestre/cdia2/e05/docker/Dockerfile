@@ -11,6 +11,7 @@ WORKDIR /app
 
 COPY --from=builder /install /usr/local
 COPY . .
+RUN mkdir -p /app/data
 
 RUN addgroup --system appgroup && \
 	adduser --system --ingroup appgroup appuser && \
