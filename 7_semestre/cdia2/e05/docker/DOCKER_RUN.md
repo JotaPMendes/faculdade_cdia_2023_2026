@@ -1,36 +1,35 @@
-# Bella Tavola — Docker (moved for notebook e05)
+# Bella Tavola — Docker e05-p02
 
-The Docker artifacts for the e05 notebook were moved here. The application source code remains in `7_semestre/cdia2/e02`.
+This folder now contains the Docker deliverables for the second notebook.
 
-docker build -f Dockerfile -t bella-tavola:e02 ../e02
-Build image (use this Dockerfile and the project code in `../../e02` as build context):
+Build the image from the source in `../../e02`:
 
 ```bash
 cd 7_semestre/cdia2/e05/docker
-# Dockerfile is in this folder, project source (requirements.txt, main.py) is in ../../e02
 docker build -f Dockerfile -t bella-tavola:e05 ../../e02
 ```
 
-Run container (detached, map port 8000):
+Run the API container directly:
 
 ```bash
 docker run -d -p 8000:8000 --name bella-e05 bella-tavola:e05
 ```
 
-Run container interactively (remove on exit):
+Run the Compose stack:
 
 ```bash
-docker run --rm -it -p 8000:8000 bella-tavola:e05
+docker compose up -d
+docker compose logs -f api
+docker compose down
 ```
 
-Stop and remove container:
+Run the stack with Nginx on port 80:
 
 ```bash
-docker stop bella-e05 && docker rm bella-e05
+docker compose up -d
+curl http://localhost/
+curl http://localhost/pratos
+docker compose down
 ```
 
-View logs:
-
-```bash
-docker logs -f bella-e05
-```
+The stack expects the local Bella Tavola app to provide the API and data paths described in the notebook.
