@@ -1,20 +1,53 @@
 import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
-import { Play, Square, Terminal } from 'lucide-react'
+import { Play, Square, Terminal, TrendingDown } from 'lucide-react'
 import { cn } from '../utils/cn'
+import {
+    LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+} from 'recharts'
+
+interface MetricPoint {
+    step: number
+    trainLoss: number
+}
+
+const MAX_CHART_POINTS = 400
+
+function parseMetricFromLog(line: string): MetricPoint | null {
+    // DeepXDE format: "  1000 [5.92e-02, 4.77e-04, ...] [...]"
+    const match = line.match(/^\s*(\d+)\s+\[([\d\s.,e+\-]+)\]/)
+    if (!match) return null
+    const step = parseInt(match[1], 10)
+    const losses = match[2]
+        .split(',')
+        .map(s => parseFloat(s.trim()))
+        .filter(v => isFinite(v) && v > 0)
+    if (losses.length === 0) return null
+    const trainLoss = losses.reduce((a, b) => a + b, 0)
+    return { step, trainLoss }
+}
 
 export default function TrainingView() {
     const [config, setConfig] = useState<any>(null)
     const [meshes, setMeshes] = useState<string[]>([])
+    const [meshBoundaries, setMeshBoundaries] = useState<string[]>([])
     const [training, setTraining] = useState(false)
     const [logs, setLogs] = useState<string[]>([])
     const [runId, setRunId] = useState<string | null>(null)
+    const [metrics, setMetrics] = useState<MetricPoint[]>([])
     const logsEndRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
         fetchConfig()
         fetchMeshes()
     }, [])
+
+    useEffect(() => {
+        if (config?.mesh_file) {
+            const filename = config.mesh_file.split('/').pop()
+            fetchMeshBoundaries(filename)
+        }
+    }, [config?.mesh_file])
 
     useEffect(() => {
         if (logsEndRef.current) {
@@ -32,6 +65,25 @@ export default function TrainingView() {
         setMeshes(res.data)
     }
 
+    const fetchMeshBoundaries = async (filename: string) => {
+        try {
+            const res = await axios.get(`http://localhost:8000/meshes/${filename}/boundaries`)
+            const boundaries: string[] = res.data
+            setMeshBoundaries(boundaries)
+            // rebuild boundary_conditions keeping existing values, dropping removed, adding new
+            setConfig((prev: any) => {
+                const existing = prev.boundary_conditions || {}
+                const updated: Record<string, number> = {}
+                for (const b of boundaries) {
+                    updated[b] = existing[b] ?? 0.0
+                }
+                return { ...prev, boundary_conditions: updated }
+            })
+        } catch {
+            setMeshBoundaries([])
+        }
+    }
+
     const startTraining = async () => {
         try {
             // Primeiro salvar config
@@ -41,6 +93,7 @@ export default function TrainingView() {
             const res = await axios.post('http://localhost:8000/train')
             setRunId(res.data.run_id)
             setTraining(true)
+            setMetrics([])
             setLogs(prev => [...prev, "--- UI: Training Started ---"])
 
             // Conectar WebSocket
@@ -51,6 +104,15 @@ export default function TrainingView() {
             }
 
             ws.onmessage = (event) => {
+                const point = parseMetricFromLog(event.data)
+                if (point) {
+                    setMetrics(prev => {
+                        const next = [...prev, point]
+                        return next.length > MAX_CHART_POINTS
+                            ? next.slice(next.length - MAX_CHART_POINTS)
+                            : next
+                    })
+                }
                 setLogs(prev => [...prev, event.data])
             }
 
@@ -77,6 +139,11 @@ export default function TrainingView() {
         } catch (error) {
             console.error(error)
         }
+    }
+
+    const clearLogs = () => {
+        setLogs([])
+        setMetrics([])
     }
 
     const handleFileUpload = async (event: any) => {
@@ -159,7 +226,10 @@ export default function TrainingView() {
                                     <label className="text-sm text-muted-foreground font-medium">Mesh Selection</label>
                                     <select
                                         value={config.mesh_file.split('/').pop()}
-                                        onChange={e => setConfig({ ...config, mesh_file: `meshes/files/${e.target.value}` })}
+                                        onChange={e => {
+                                            setConfig({ ...config, mesh_file: `meshes/files/${e.target.value}` })
+                                            fetchMeshBoundaries(e.target.value)
+                                        }}
                                         className="w-full bg-secondary border border-input rounded-lg p-2 text-foreground"
                                     >
                                         {meshes.map(m => <option key={m} value={m}>{m}</option>)}
@@ -307,21 +377,92 @@ export default function TrainingView() {
                     </button>
                 </div>
 
-                {/* Logs Column */}
-                <div className="col-span-2 bg-black rounded-xl border border-border p-4 flex flex-col font-mono text-sm h-[600px] shadow-inner">
-                    <div className="flex items-center gap-2 text-muted-foreground mb-2 border-b border-white/10 pb-2">
-                        <Terminal size={16} />
-                        <span>Live Logs {runId && `(${runId})`}</span>
+                {/* Right Panel: Chart + Logs */}
+                <div className="col-span-2 flex flex-col gap-4 min-h-0">
+                    {/* Loss Chart */}
+                    <div className="bg-card border border-border rounded-xl p-4 flex flex-col flex-none" style={{ height: '220px' }}>
+                        <div className="flex items-center gap-2 text-muted-foreground mb-2 border-b border-border pb-2">
+                            <TrendingDown size={16} />
+                            <span className="text-sm font-medium text-foreground">Loss Curve</span>
+                            {metrics.length > 0 && (
+                                <span className="ml-auto text-xs font-mono bg-secondary px-2 py-0.5 rounded text-muted-foreground">
+                                    step {metrics[metrics.length - 1].step}
+                                    &nbsp;·&nbsp;
+                                    {metrics[metrics.length - 1].trainLoss.toExponential(3)}
+                                </span>
+                            )}
+                        </div>
+                        <div className="flex-1 min-h-0">
+                            <LossChart data={metrics} />
+                        </div>
                     </div>
-                    <div className="flex-1 overflow-y-auto space-y-1 p-2">
-                        {logs.map((log, i) => (
-                            <div key={i} className="text-gray-300 whitespace-pre-wrap font-mono text-xs">{log}</div>
-                        ))}
-                        <div ref={logsEndRef} />
-                        {logs.length === 0 && <span className="text-muted-foreground italic">Ready to train...</span>}
+
+                    {/* Logs */}
+                    <div className="bg-black rounded-xl border border-border p-4 flex flex-col font-mono text-sm flex-1 min-h-0 shadow-inner">
+                        <div className="flex items-center gap-2 text-muted-foreground mb-2 border-b border-white/10 pb-2">
+                            <Terminal size={16} />
+                            <span>Live Logs {runId && `(${runId})`}</span>
+                        </div>
+                        <div className="flex-1 overflow-y-auto space-y-1 p-2">
+                            {logs.map((log, i) => (
+                                <div key={i} className="text-gray-300 whitespace-pre-wrap font-mono text-xs">{log}</div>
+                            ))}
+                            <div ref={logsEndRef} />
+                            {logs.length === 0 && <span className="text-muted-foreground italic">Ready to train...</span>}
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+    )
+}
+
+function LossChart({ data }: { data: MetricPoint[] }) {
+    if (data.length === 0) {
+        return (
+            <div className="h-full flex items-center justify-center">
+                <span className="text-muted-foreground text-sm italic">Loss curve will appear when training starts...</span>
+            </div>
+        )
+    }
+
+    return (
+        <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={data} margin={{ top: 4, right: 16, left: 4, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.12)" />
+                <XAxis
+                    dataKey="step"
+                    tick={{ fontSize: 10, fill: '#888' }}
+                    tickLine={false}
+                    axisLine={{ stroke: '#333' }}
+                    tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`}
+                />
+                <YAxis
+                    scale="log"
+                    domain={['auto', 'auto']}
+                    allowDataOverflow
+                    tick={{ fontSize: 10, fill: '#888' }}
+                    tickLine={false}
+                    axisLine={{ stroke: '#333' }}
+                    tickFormatter={(v: number) => v.toExponential(0)}
+                    width={52}
+                />
+                <Tooltip
+                    contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 6, fontSize: 12 }}
+                    labelStyle={{ color: '#9ca3af', marginBottom: 4 }}
+                    labelFormatter={(v: number) => `Step ${v}`}
+                    formatter={(v: number) => [v.toExponential(4), 'Train Loss']}
+                    cursor={{ stroke: '#4b5563', strokeWidth: 1 }}
+                />
+                <Line
+                    type="monotone"
+                    dataKey="trainLoss"
+                    stroke="#3b82f6"
+                    strokeWidth={1.5}
+                    dot={false}
+                    isAnimationActive={false}
+                />
+            </LineChart>
+        </ResponsiveContainer>
     )
 }

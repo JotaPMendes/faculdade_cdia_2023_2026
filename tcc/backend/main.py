@@ -89,6 +89,34 @@ def list_meshes():
         return []
     return [f for f in os.listdir(mesh_dir) if f.endswith(".msh")]
 
+@app.get("/meshes/{filename}/boundaries")
+def get_mesh_boundaries(filename: str):
+    if not filename.endswith(".msh") or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    mesh_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "meshes", "files", filename)
+    if not os.path.exists(mesh_path):
+        raise HTTPException(status_code=404, detail="Mesh not found")
+    boundaries = []
+    try:
+        in_section = False
+        with open(mesh_path, "r") as f:
+            for line in f:
+                line = line.strip()
+                if line == "$PhysicalNames":
+                    in_section = True
+                    continue
+                if line == "$EndPhysicalNames":
+                    break
+                if in_section and '"' in line:
+                    parts = line.split()
+                    dim = int(parts[0])
+                    name = line.split('"')[1]
+                    if dim == 1:  # only boundary lines, not surface domains
+                        boundaries.append(name)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    return boundaries
+
 @app.get("/runs")
 def list_runs():
     results_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "results")
